@@ -77,6 +77,7 @@ plugins=(zsh-z common-aliases zsh-autosuggestions zsh-syntax-highlighting rails 
 source $ZSH/oh-my-zsh.sh
 eval "$(rbenv init -)"
 export TERM=kitty
+source ~/.zsh_aliases
 
 # User configuration
 
