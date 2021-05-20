@@ -75,6 +75,7 @@ COMPLETION_WAITING_DOTS="true"
 plugins=(zsh-z common-aliases zsh-autosuggestions zsh-syntax-highlighting rails golang)
 
 source $ZSH/oh-my-zsh.sh
+source $HOME/.zsh_aliases
 eval "$(rbenv init -)"
 export TERM=kitty
 
