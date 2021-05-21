@@ -1,3 +1,6 @@
+source /home/linuxbrew/.linuxbrew/share/antigen/antigen.zsh
+source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/chruby.sh
+source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/auto.sh
 #===================POWERLINE====================
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
@@ -72,10 +75,15 @@ COMPLETION_WAITING_DOTS="true"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(zsh-z common-aliases zsh-autosuggestions zsh-syntax-highlighting rails golang)
+plugins=(zsh-z
+         common-aliases
+         zsh-autosuggestions
+         zsh-syntax-highlighting
+         rails
+         golang)
 
 source $ZSH/oh-my-zsh.sh
-eval "$(rbenv init -)"
+# eval "$(rbenv init -)"
 export TERM=kitty
 source ~/.zsh_aliases
 
