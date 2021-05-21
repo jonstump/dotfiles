@@ -1,4 +1,4 @@
-# zshr setup
+# zshrc setup
 #
 # This setup primarily uses antigen and brew
 #
@@ -8,17 +8,18 @@ source ~/.zsh_aliases
 source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/chruby.sh
 source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/auto.sh
 source /home/linuxbrew/.linuxbrew/opt/powerlevel10k/powerlevel10k.zsh-theme
+
 # Exports
 export TERM=kitty
 export NVM_DIR="$HOME/.nvm"
   [ -s "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh" ] && . "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"  # This loads nvm
   [ -s "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
+## Antigen ##
 # Load oh-my-zsh via antigen
 antigen use oh-my-zsh
 
 # antigen plugin bundles
-
 antigen bundles <<EOBUNDLES
   # Common aliases for terminal
   common-aliases
@@ -68,4 +69,6 @@ fi
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Neofetch to liven up the terminal on launch
 neofetch
