@@ -18,7 +18,7 @@ alias vpn='sudo cyberghostvpn --connect --country-code US'
 alias vpnstop='sudo cyberghostvpn --stop'
 alias vpnstat='cyberghostvpn --status'
 alias license='mklicense'
-alias synology='sudo mount.cifs //192.168.1.15/home /mnt/share -o credentials=/mount/credentials,uid=1000,gid=1000'
+alias synology='sudo mount.cifs //192.168.1.15/home /mnt/share -o credentials=$HOME/.ssh/credentials,uid=1000,gid=1000'
 alias spicetify=/home/jmstump/spicetify-cli/spicetify
 alias spicereload='spicetify backup apply enable-devtool'
 alias emailbox='ssh root@45.33.41.8'
