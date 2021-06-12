@@ -13,22 +13,27 @@ then
 fi
 
 linux_setup() {
+# install dot files:
+
 #Homebrew
   curl and install brew via their script. &&
-    sudo apt install &&
+# Apt update and upgrade
+  sudo apt update && upgrade &&
+# Apt install
+  sudo apt install &&
     # apps to install via apt
-    &&
-    &&
-    &&
-    &&
-    &&
-    &&
-    &&
-  <commands>
+    kitty &&
+    zsh &&
+    zsh-antigen &&
+    neofetch &&
+    neovim &&
+    imagemagick &&
+    code &&
 }
 
 mac_setup() {
 #Homebrew
-  curl and install brew via their script.
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &&
+  Brew install using brewfile
   <commands>
 }
