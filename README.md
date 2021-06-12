@@ -22,8 +22,6 @@ These are my dotfiles for multiple apps. Currently working on an isntall script 
 
 ## To Add:
 
-* [X] Regolith/i3
-  * [ ] Arch i3 Setup
 * [ ] git dotfiles
 * [ ] VSCode/Codium
 * [ ] spicetify
@@ -36,6 +34,10 @@ These are my dotfiles for multiple apps. Currently working on an isntall script 
 ## WIP
 
 * script to setup an environment
+    * Removed WM dotfiles from to add list - 6/12/2021
+    * Re-added an install script in dotfiles folder
+    *   Checks to see if it's a linux or mac environment
+    *   Makes assumption linux environment is PopOS
 
 * * *
 
