@@ -5,6 +5,7 @@ call plug#begin("~/.vim/plugged")
     Plug 'ryanoasis/vim-devicons'
     Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
   Plug 'itchyny/lightline.vim'
+  Plug 'arcticicestudio/nord-vim'
   Plug 'liuchengxu/vim-which-key', { 'on': ['WhichKey', 'WhichKey!'] }
   Plug 'dense-analysis/ale'
   Plug 'itchyny/vim-gitbranch'
