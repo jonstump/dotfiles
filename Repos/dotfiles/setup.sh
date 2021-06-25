@@ -1,17 +1,6 @@
 #!/bin/bash
 
-#Install regardless of OSTYPE
-
-
-if [[ "$OSTYPE" == "linux-gnu" ]];
-then
-  echo "Linux is your OS"
-  # Do setup for Linux
-  else [[ "$OSTYPE" == "darwin" ]];
-  echo "MacOS is your OS"
-  # do setup for Mac
-fi
-
+#Function for Linux setup
 linux_setup() {
 # install dot files:
 
@@ -28,12 +17,28 @@ linux_setup() {
     neofetch &&
     neovim &&
     imagemagick &&
-    code &&
+    code
 }
 
+#Function for MacOS setup
 mac_setup() {
 #Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &&
   Brew install using brewfile
   <commands>
 }
+#Install regardless of OSTYPE
+
+
+if [[ "$OSTYPE" == "linux-gnu" ]];
+then
+  echo "Linux is your OS"
+  linux_setup
+  # Do setup for Linux
+  else [[ "$OSTYPE" == "darwin" ]];
+  echo "MacOS is your OS"
+  # do setup for Mac
+  mac_setup
+fi
+
+
