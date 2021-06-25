@@ -11,7 +11,7 @@
 #
 # Sources
 source $HOME/.antigen.zsh
-source ~/.zsh_aliases
+source $HOME/.zsh_aliases
 source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/chruby.sh
 source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/auto.sh
 source $HOME/.zprofile
@@ -20,6 +20,10 @@ source $HOME/.zprofile
 export NVM_DIR="$HOME/.nvm"
   [ -s "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh" ] && . "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"  # This loads nvm
   [ -s "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
+# allows for terraform to be accessed globally
+export PATH=$HOME/terraform/:$PATH
+# export TERM=kitty-term
 
 ## Antigen ##
 # Load oh-my-zsh via antigen
