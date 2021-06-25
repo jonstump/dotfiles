@@ -23,12 +23,12 @@ linux_setup() {
 #Function for MacOS setup
 mac_setup() {
 #Homebrew
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &&
-  Brew install using brewfile
-  <commands>
+  *create homebrew file*
+  brew file install
 }
 #Install regardless of OSTYPE
 
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 if [[ "$OSTYPE" == "linux-gnu" ]];
 then
