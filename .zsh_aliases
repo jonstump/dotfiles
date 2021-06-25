@@ -21,5 +21,7 @@ alias license='mklicense'
 alias synology='sudo mount.cifs //192.168.1.15/home /mnt/share -o credentials=$HOME/.ssh/credentials,uid=1000,gid=1000'
 alias spicetify=/home/jmstump/spicetify-cli/spicetify
 alias spicereload='spicetify backup apply enable-devtool'
-alias emailbox='ssh root@45.33.41.8'
+alias ssh="kitty +kitten ssh"
 alias config='/usr/bin/git --git-dir=$DOTFILES/ --work-tree=$HOME'
+alias npmreinstall='rm -rf node_modules/ && npm install'
+alias gstat='git status'
