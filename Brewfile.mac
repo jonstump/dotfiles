@@ -6,7 +6,10 @@ tap "homebrew/cask"
 tap "homebrew/cask-fonts"
 tap "homebrew/core"
 tap "homebrew/services"
+tap "zegervdv/zathura"
+tap "mas-cli/tap"
 
+# Brew
 # git
 brew git
 # antigen for zsh plugins
@@ -21,24 +24,44 @@ brew "chruby"
 brew "gcc"
 # Node
 brew "node"
+# Python Environment manager
+brew pyenv
 # Manage multiple Node.js versions
 brew "nvm"
 # Install Ruby, JRuby, Rubinius, TruffleRuby, or mruby
 brew "ruby-install"
 # Neovim
 brew "neovim"
+# Zathura PDF reader
+brew "zathrua"
+
+# mas installs
+# 1Password password manager
+mas "com.agilebits.onepassword-osx", id: 443987910
+# Fantastical multi-calendar and to do manager
+mas "Fantastical", id: 975937182
+
+# Cask
 # Vivaldi Browser
-cask vivaldi
+cask "vivaldi"
 # Visual Studio Code
-cask visual-studio-code
+cask "visual-studio-code"
 # Ferdi
-cask ferdi
+cask "ferdi"
 # Signal Messaging App
-cask signal
+cask "signal"
 # Alfred searchbar
 cask "alfred"
 # Caffeine screen manager
 cask "caffeine"
+# kitty terminal
+cask "kitty"
+# Obsidian notes
+cask "obsidian"
+# Windows tiling manager
+cask "amethyst"
+# Postman for APIs
+cask "postman"
+# fira font
+cask "font-fira-mono"
 
-# mas installs
-mas "com.agilebits.onepassword-osx", id: 443987910
