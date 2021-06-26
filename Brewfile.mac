@@ -1,0 +1,42 @@
+cask_args appdir: "/Applications"
+
+# Sources
+tap "homebrew/bundle"
+tap "homebrew/cask"
+tap "homebrew/cask-fonts"
+tap "homebrew/core"
+tap "homebrew/services"
+
+# git
+brew git
+# mas-cli or Mac App Store Cli
+brew mas
+# Linux/OSX/FreeBSD resource monitor
+brew "bpytop"
+# Ruby environment tool
+brew "chruby"
+# GNU compiler collection
+brew "gcc"
+# Node
+brew "node"
+# Manage multiple Node.js versions
+brew "nvm"
+# Install Ruby, JRuby, Rubinius, TruffleRuby, or mruby
+brew "ruby-install"
+# Neovim
+brew "neovim"
+# Vivaldi Browser
+cask vivaldi
+# Visual Studio Code
+cask visual-studio-code
+# Ferdi
+cask ferdi
+# Signal Messaging App
+cask signal
+# Alfred searchbar
+cask "alfred"
+# Caffeine screen manager
+cask "caffeine"
+
+# mas installs
+mas "com.agilebits.onepassword-osx", id: 443987910
