@@ -9,6 +9,8 @@ tap "homebrew/services"
 
 # git
 brew git
+# antigen for zsh plugins
+brew antigen
 # mas-cli or Mac App Store Cli
 brew mas
 # Linux/OSX/FreeBSD resource monitor
