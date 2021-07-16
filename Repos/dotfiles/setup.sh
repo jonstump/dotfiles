@@ -16,7 +16,7 @@ linux_setup() {
   sudo tee -a /etc/apt/sources.list.d/signal-xenial.list
 
 # Apt update and upgrade
-  sudo apt update && upgrade
+  sudo apt update && apt upgrade
 
 # apps to install via apt
   sudo apt install kitty zsh zsh-antigen neofetch neovim imagemagick code docker virtualbox spotify-client signal-desktop -y
@@ -25,45 +25,51 @@ linux_setup() {
 
   #set shell to ZSH
   sudo chsh -s /bin/zsh
-
-  #make directory for dotfiles and other repos
-
-  mkdir Repos
-  mkdir $HOME/Repos/dotfiles
-
-  #clone git dotfiles repository
-  git clone --bare https://github.com/jonstump/dotfiles.git $HOME/Repos/dotfiles
-
-  #makes config alias for use of the script to setup dotfiles
-  function config {
-    /usr/bin/git --git-dir=$HOME/.config/ --work-tree=$HOME
-  }
-
-  #make a backup of already existing dotfiles
-  mkdir -p .config-backup && \
-    config checkout 2>&1 | egrep "\s+\." | awk {'print $1'} | \
-    xargs -I{} mv {} .config-backup/{}
-
-  #checkout content from bare git repository for dotfiles
-  config checkout
-
-  #set tracked files to no
-  config config --local status.showUntrackedFiles no
-
-  brew file install
 }
 
 #Function for MacOS setup
 mac_setup() {
 #Homebrew
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   *create homebrew file*
 }
 #Install regardless of OSTYPE
+# installs ruby-install
+wget -O ruby-install-0.8.2.tar.gz https://github.com/postmodern/ruby-install/archive/v0.8.2.tar.gz
+tar -xzvf ruby-install-0.8.2.tar.gz
+cd ruby-install-0.8.2/
+sudo make install
 
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+#installs Chruby
+wget -O chruby-0.3.9.tar.gz https://github.com/postmodern/chruby/archive/v0.3.9.tar.gz
+tar -xzvf chruby-0.3.9.tar.gz
+cd chruby-0.3.9/
+sudo make install
+
+#installs NVM
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+
+#make directory for dotfiles and other repos
+mkdir Repos
+mkdir $HOME/Repos/dotfiles
+
+#clone git dotfiles repository
+git clone --bare https://github.com/jonstump/dotfiles.git $HOME/Repos/dotfiles
+
+#makes config alias for use of the script to setup dotfiles
+alias config='/usr/bin/git --git-dir=$HOME/Repos/dotfiles --work-tree=$HOME'
+
+config config --local status.showUntrackedFiles no
+
+echo "alias config='/usr/bin/git --git-dir=$HOME/Repos/dotfiles --work-tree=$HOME'" >> $HOME/.bashrc
+
+#checkout content from bare git repository for dotfiles
+config checkout
+
+#set tracked files to no
+config config --local status.showUntrackedFiles no
 
 # instructions to install basic brewfile regardless of linux or mac
-
 if [[ "$OSTYPE" == "linux-gnu" ]];
 then
   echo "Linux is your OS"
