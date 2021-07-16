@@ -2,33 +2,40 @@
 
 #Function for Linux setup
 linux_setup() {
-# install dot files:
-
-#Homebrew
-  curl and install brew via their script. &&
-# Apt update and upgrade
-  sudo apt update && upgrade &&
 # Apt install
-  sudo apt install &&
-    # apps to install via apt
-    kitty &&
-    zsh &&
-    zsh-antigen &&
-    neofetch &&
-    neovim &&
-    imagemagick &&
-    code
+
+# Add Spotify Repository
+curl -sS https://download.spotify.com/debian/pubkey_0D811D58.gpg | sudo apt-key add -
+echo "deb http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list
+
+# Add Signal Repositroy
+wget -O- https://updates.signal.org/desktop/apt/keys.asc | gpg --dearmor > signal-desktop-keyring.gpg
+cat signal-desktop-keyring.gpg | sudo tee -a /usr/share/keyrings/signal-desktop-keyring.gpg > /dev/null
+
+echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] https://updates.signal.org/desktop/apt xenial main' |\
+  sudo tee -a /etc/apt/sources.list.d/signal-xenial.list
+
+# Apt update and upgrade
+  sudo apt update && upgrade
+
+# apps to install via apt
+  sudo apt install kitty zsh zsh-antigen neofetch neovim imagemagick code docker virtualbox spotify-client signal-desktop -y
+
+  sudo apt clean
+
+  brew file install
 }
 
 #Function for MacOS setup
 mac_setup() {
 #Homebrew
   *create homebrew file*
-  brew file install
 }
 #Install regardless of OSTYPE
 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# instructions to install basic brewfile regardless of linux or mac
 
 if [[ "$OSTYPE" == "linux-gnu" ]];
 then
