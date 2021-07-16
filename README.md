@@ -33,11 +33,11 @@ These are my dotfiles for multiple apps. Currently working on an isntall script 
 
 ## WIP
 
-* script to setup an environment
-    * Removed WM dotfiles from to add list - 6/12/2021
-    * Re-added an install script in dotfiles folder
-    *   Checks to see if it's a linux or mac environment
-    *   Makes assumption linux environment is PopOS
+Current state of setup script:
+It does recognize what OS you are running and is able to install repositories for signal and spotify, update apt repositories, auto install brew, and auto install apt applications.
+
+Once it is done it fails on the brew file install because my dotfiles have not been downloaded. Therefore it doesn't know how to reference brew since it's not in the bashrc.
+Need to investigate the better of the two options, having the script add those to the bashrc before it gets to the zsh setup or do zsh setup first and then do the brew file.
 
 * * *
 
