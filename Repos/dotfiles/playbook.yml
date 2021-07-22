@@ -1,5 +1,13 @@
 hosts: localhost
 tasks:
+  # This task does a simple update and upgrade of apt before installing packages so everything is up to date
+  - name: Update and upgrade
+    tasks:
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400
+  # This task will install apt packages for a light development environment
   - name: Install packages
     apt:
       name:
