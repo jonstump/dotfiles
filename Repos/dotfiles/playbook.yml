@@ -1,0 +1,12 @@
+hosts: localhost
+tasks:
+  - name: Install packages
+    apt:
+      name:
+        - git
+        - kitty
+        - neovim
+        - zsh
+        - zsh-antigen
+        state: latest
+        cache_valid_time: 3600
