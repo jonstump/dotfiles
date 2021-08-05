@@ -1,7 +1,0 @@
-{
-    "window.zoomLevel": 2,
-    "vim.neovimPath": "/usr/bin/nvim",
-    "workbench.colorTheme": "Nord",
-    "javascript.updateImportsOnFileMove.enabled": "always",
-    "files.autoSave": "afterDelay"
-}

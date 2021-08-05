@@ -1,29 +1,13 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-# if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-#   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-# fi
-
-# zshrc setup
-#
-# This setup primarily uses antigen and brew
-#
 # Sources
 source $HOME/.antigen.zsh
 source $HOME/.zsh_aliases
-source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/chruby.sh
-source /home/linuxbrew/.linuxbrew/opt/chruby/share/chruby/auto.sh
 source $HOME/.zprofile
 
 # Exports
-export NVM_DIR="$HOME/.nvm"
-  [ -s "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh" ] && . "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"  # This loads nvm
-  [ -s "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 # allows for terraform to be accessed globally
 export PATH=$HOME/terraform/:$PATH
-# export TERM=kitty-term
+export TERM=kitty-term
 
 ## Antigen ##
 # Load oh-my-zsh via antigen
