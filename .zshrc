@@ -7,7 +7,11 @@ source $HOME/.zprofile
 
 # allows for terraform to be accessed globally
 export PATH=$HOME/terraform/:$PATH
-export TERM=kitty-term
+# export TERM=kitty-term
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 ## Antigen ##
 # Load oh-my-zsh via antigen
@@ -67,4 +71,4 @@ fi
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # Neofetch to liven up the terminal on launch
-neofetch
+# neofetch
