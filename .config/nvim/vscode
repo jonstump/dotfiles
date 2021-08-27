@@ -1,0 +1,30 @@
+""============= keybinding remaps ==============
+imap jj <Esc>
+let mapleader = "'"
+" Disable spell checking
+map <leader>S :setlocal spell!<CR>
+map <leader>c gcc
+
+" shortcuts for navigation
+map <C-h> <C-w>h
+map <C-j> <C-w>j
+map <C-k> <C-w>k
+map <C-l> <C-w>l
+
+" split navigation
+map <leader>s <C-w>s
+map <leader>v <C-w>v
+
+" save and quitting files
+map <leader>w :w<CR>
+map <leader>q :q<CR>
+map <leader>Q :wqa<CR>
+map <leader>! :qa!<CR>
+map <leader>d <d-d>
+
+" search and replace
+map <leader>r :%s///g
+map <leader>t :tabnew<CR>
+
+" which key
+nnoremap <silent> <leader> :WhichKey "'"<CR>
