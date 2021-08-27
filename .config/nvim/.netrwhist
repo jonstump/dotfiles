@@ -1,0 +1,12 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhistcnt =2
+let g:netrw_dirhist_2='/home/jon/.config/nvim'
+let g:netrw_dirhist_1='/home/jmstump/.config/nvim'
+let g:netrw_dirhist_0='/home/jmstump/Repos/dotfiles'
+let g:netrw_dirhist_9='/home/jmstump/Documents/Epicodus/api-friday-project'
+let g:netrw_dirhist_8='/home/jmstump/Documents/Epicodus/api-friday-project/src'
+let g:netrw_dirhist_7='/home/jmstump/Documents/Epicodus/api-friday-project'
+let g:netrw_dirhist_6='/home/jmstump/Documents/Epicodus/api-friday-project/src'
+let g:netrw_dirhist_5='/home/jmstump/Documents/Epicodus/api-friday-project'
+let g:netrw_dirhist_4='/home/jmstump/Documents/Epicodus'
+let g:netrw_dirhist_3='/home/jmstump/Documents/Epicodus/api-friday-project'
