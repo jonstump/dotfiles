@@ -14,7 +14,6 @@ call plug#begin("~/.vim/plugged")
   Plug 'tpope/vim-fugitive'
   Plug 'Townk/vim-autoclose'
   Plug 'tpope/vim-endwise'
-"  Plug 'vim-ruby/vim-ruby'
   Plug 'skalnik/vim-vroom'
   Plug 'luochen1990/rainbow'
   Plug 'airblade/vim-gitgutter'
@@ -22,12 +21,10 @@ call plug#begin("~/.vim/plugged")
   Plug 'sheerun/vim-polyglot'
   Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries' }
   Plug 'vim-crystal/vim-crystal'
-  " Plug 'pangloss/vim-javascript'
-  " Plug 'mxw/vim-jsx'
+  Plug 'neovim/nvim-lspconfig'
 
 
 "  " Future LSP support for neovim
-"" Plug 'neovim/nvim-lspconfig'
 "" Plug 'hrsh7th/nvim-compe'
 let g:jsx_ext_required = 0
 
