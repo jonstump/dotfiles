@@ -22,11 +22,14 @@ call plug#begin("~/.vim/plugged")
   Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries' }
   Plug 'vim-crystal/vim-crystal'
   Plug 'neovim/nvim-lspconfig'
+  Plug 'shinchu/lightline-gruvbox.vim'
+  Plug 'morhetz/gruvbox'
 
 let g:jsx_ext_required = 0
 
 call plug#end()
 
+"===============ALE settings===============
 let g:ale_linters = {
 \   'markdown':      ['mdl', 'writegood'],
 \   'ruby':      ['rubocop'],
@@ -37,11 +40,12 @@ let g:ale_sign_warning = '.'
 "let g:ale_sign_warning                = '⚠'
 highlight ALEErrorSign ctermbg        =NONE ctermfg=red
 highlight ALEWarningSign ctermbg      =NONE ctermfg=yellow
+
 "============= Color Scheme and Lightline ==============
-colorscheme nord
+colorscheme gruvbox
 
 let g:lightline = {
-      \ 'colorscheme': 'nord',
+      \ 'colorscheme': 'gruvbox',
       \ 'active': {
       \   'left': [ [ 'mode', 'paste' ],
       \             [ 'gitbranch', 'readonly', 'filename', 'modified' ] ]
