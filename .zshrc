@@ -1,23 +1,43 @@
 # Sources
-source $HOME/.antigen.zsh
+#source $HOME/.antigen.zsh
+#source antigen with brew
+source /opt/homebrew/share/antigen/antigen.zsh
 source $HOME/.zsh_aliases
 source $HOME/.zprofile
+
+#Standard Linux install
 source /usr/local/share/chruby/chruby.sh
 source /usr/local/share/chruby/auto.sh
 
+#Mac Hombrew
+# source /opt/homebrew/opt/chruby/share/chruby/auto.sh
+# source /opt/homebrew/opt/chruby/share/chruby/chruby.sh
+
 # Exports
+export PATH=/opt/homebrew/bin:$PATH
 
 # allows for terraform to be accessed globally
-export PATH=$HOME/terraform/:$PATH
+# export PATH=$HOME/terraform/:$PATH
 # export TERM=kitty-term
 
+#NVM for standlard linux
+#export NVM_DIR="$HOME/.nvm"
+#[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+#[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# for item in $(ls -1 ${HOME}/.profile.d/*.plugin.zsh); do
+  # [ -e "${item}" ] && source "${item}"
+# done
+
+#NVM for Mac with homebrew
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+  [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && . "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+  [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
 
 # export for postgres
 export PGDATA="/usr/local/var/postgres/12/"
 export PGHOST="/tmp"
+eval "$(rbenv init - zsh)"
 
 ## Antigen ##
 # Load oh-my-zsh via antigen
@@ -78,3 +98,5 @@ fi
 
 # Neofetch to liven up the terminal on launch
 # neofetch
+export PATH="/opt/homebrew/opt/postgresql@12/bin:$PATH"
+eval "$(pyenv init -)"
