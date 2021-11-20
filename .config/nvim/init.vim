@@ -23,9 +23,6 @@ call plug#begin("~/.vim/plugged")
   Plug 'vim-crystal/vim-crystal'
   Plug 'neovim/nvim-lspconfig'
 
-
-"  " Future LSP support for neovim
-"" Plug 'hrsh7th/nvim-compe'
 let g:jsx_ext_required = 0
 
 call plug#end()
