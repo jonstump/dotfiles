@@ -24,6 +24,8 @@ call plug#begin("~/.vim/plugged")
   Plug 'neovim/nvim-lspconfig'
   Plug 'shinchu/lightline-gruvbox.vim'
   Plug 'morhetz/gruvbox'
+  Plug 'junegunn/fzf'
+  Plug 'gfanto/fzf-lsp.nvim'
 
 let g:jsx_ext_required = 0
 
@@ -33,6 +35,7 @@ call plug#end()
 let g:ale_linters = {
 \   'markdown':      ['mdl', 'writegood'],
 \   'ruby':      ['rubocop'],
+\   'python':   ['pylint'],
 \}
 let g:ale_sign_error = '●'
 let g:ale_sign_warning = '.'
@@ -54,6 +57,7 @@ let g:lightline = {
       \   'gitbranch': 'gitbranch#name'
       \ },
       \ }
+let $NVIM_TUI_ENABLE_TRUE_COLOR=1
 
 ""============= gitgutter settings ==============
 let g:gitgutter_sign_column_always = 1
