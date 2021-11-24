@@ -25,7 +25,11 @@ call plug#begin("~/.vim/plugged")
   Plug 'shinchu/lightline-gruvbox.vim'
   Plug 'morhetz/gruvbox'
   Plug 'junegunn/fzf'
-  Plug 'gfanto/fzf-lsp.nvim'
+  Plug 'nvim-lua/plenary.nvim'
+  Plug 'nvim-telescope/telescope.nvim'
+  Plug 'mrjones2014/dash.nvim', { 'do': 'make install' }
+
+
 
 let g:jsx_ext_required = 0
 
@@ -131,6 +135,12 @@ map <leader>! :qa!<CR>
 " search and replace
 map <leader>r :%s///g
 map <leader>t :tabnew<CR>
+
+" Find files using Telescope command-line sugar.
+nnoremap <leader>ff <cmd>Telescope find_files<cr>
+nnoremap <leader>fg <cmd>Telescope live_grep<cr>
+nnoremap <leader>fb <cmd>Telescope buffers<cr>
+nnoremap <leader>fh <cmd>Telescope help_tags<cr>
 
 " which key
 nnoremap <silent> <leader> :WhichKey " "<CR>
