@@ -100,3 +100,6 @@ fi
 # neofetch
 export PATH="/opt/homebrew/opt/postgresql@12/bin:$PATH"
 eval "$(pyenv init -)"
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
