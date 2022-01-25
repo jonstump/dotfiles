@@ -25,3 +25,6 @@ alias config='/usr/bin/git --git-dir=$DOTFILES/ --work-tree=$HOME'
 alias npmreinstall='rm -rf node_modules/ && npm install'
 alias gstat='git status'
 alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
+alias dcr="docker-compose run"
+alias dcd="docker-compose down"
+alias dcu="docker-compose up"
