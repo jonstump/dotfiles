@@ -12,6 +12,7 @@ call plug#begin("~/.vim/plugged")
   Plug 'tpope/vim-commentary'
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-fugitive'
+  Plug 'tpope/vim-obsession'
   Plug 'Townk/vim-autoclose'
   Plug 'tpope/vim-endwise'
   Plug 'skalnik/vim-vroom'
@@ -24,10 +25,13 @@ call plug#begin("~/.vim/plugged")
   Plug 'neovim/nvim-lspconfig'
   Plug 'shinchu/lightline-gruvbox.vim'
   Plug 'morhetz/gruvbox'
-  Plug 'junegunn/fzf'
+  Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+  Plug 'junegunn/fzf.vim'
   Plug 'nvim-lua/plenary.nvim'
   Plug 'nvim-telescope/telescope.nvim'
   Plug 'mrjones2014/dash.nvim', { 'do': 'make install' }
+  Plug 'mileszs/ack.vim'
+  Plug 'alexghergh/nvim-tmux-navigation'
 
 
 
@@ -122,6 +126,12 @@ map <C-j> <C-w>j
 map <C-k> <C-w>k
 map <C-l> <C-w>l
 
+nnoremap <silent> <C-h> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateLeft()<cr>
+nnoremap <silent> <C-j> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateDown()<cr>
+nnoremap <silent> <C-k> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateUp()<cr>
+nnoremap <silent> <C-l> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateRight()<cr>
+nnoremap <silent> <C-\> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateLastActive()<cr>
+nnoremap <silent> <C-Space> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateNext()<cr>
 " split navigation
 map <leader>s <C-w>s
 map <leader>v <C-w>v
@@ -148,7 +158,8 @@ nnoremap <silent> <leader> :WhichKey " "<CR>
 
 ""============= Vim Settings ==============
 syntax on
-set number relativenumber
+set number
+" set relativenumber
 set noswapfile
 set hlsearch
 set scrolloff=10
