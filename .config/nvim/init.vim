@@ -113,6 +113,10 @@ let mapleader = " "
 " Disable spell checking
 map <leader>S :setlocal spell!<CR>
 map <leader>c gcc
+map <leader>o :noh<cr>
+
+" Jump to definition page
+map <leader>d :call CocAction('jumpDefinition', 'tab drop')<cr>
 
 " Disable arrow keys
 noremap <Up> <Nop>
@@ -126,12 +130,14 @@ map <C-j> <C-w>j
 map <C-k> <C-w>k
 map <C-l> <C-w>l
 
+" tmux navigation
 nnoremap <silent> <C-h> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateLeft()<cr>
 nnoremap <silent> <C-j> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateDown()<cr>
 nnoremap <silent> <C-k> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateUp()<cr>
 nnoremap <silent> <C-l> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateRight()<cr>
 nnoremap <silent> <C-\> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateLastActive()<cr>
 nnoremap <silent> <C-Space> :lua require'nvim-tmux-navigation'.NvimTmuxNavigateNext()<cr>
+
 " split navigation
 map <leader>s <C-w>s
 map <leader>v <C-w>v
@@ -151,6 +157,9 @@ nnoremap <leader>ff <cmd>Telescope find_files<cr>
 nnoremap <leader>fg <cmd>Telescope live_grep<cr>
 nnoremap <leader>fb <cmd>Telescope buffers<cr>
 nnoremap <leader>fh <cmd>Telescope help_tags<cr>
+
+" AG fing whichkey
+map <leader>f :Ag<cr>
 
 " which key
 nnoremap <silent> <leader> :WhichKey " "<CR>

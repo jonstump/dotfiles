@@ -15,6 +15,7 @@ source /usr/local/share/chruby/auto.sh
 
 # Exports
 export PATH=/opt/homebrew/bin:$PATH
+export KUBECONFIG=/Users/jonathanstump/kubeconfig
 
 # allows for terraform to be accessed globally
 # export PATH=$HOME/terraform/:$PATH
@@ -88,10 +89,12 @@ DOTFILES="$HOME/Repos/dotfiles"
 
 # Preferred editor for local and remote sessions
 if [[ -n $SSH_CONNECTION ]]; then
-  export EDITOR='nvim'
+  export EDITOR=nvim
 else
-  export EDITOR='vi'
+  export EDITOR=vim
 fi
+
+export EDITOR=nvim
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
