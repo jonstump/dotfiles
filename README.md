@@ -41,8 +41,8 @@ $HOME/install.sh
 - **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo on amd64
   (modern `signed-by` keyring in `/etc/apt/keyrings`, not the deprecated
   `apt-key`), installs everything in `apt-packages.txt`, and installs
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux` via their own
-  upstream installers since none of those are reliable apt packages
+  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` via their
+  own upstream installers since none of those are reliable apt packages
   (`topgrade` comes from PyPI via `pipx install topgrade`, using the `pipx`
   that apt already installed). Unavailable packages are reported and skipped
   rather than failing the install.
@@ -54,7 +54,8 @@ $HOME/install.sh
 - **NixOS / nix-darwin / Nix on any other host**: skips package installation
   entirely — packages for those machines are declared in a separate
   flake/home-manager repo, not here. Only sets up the non-package pieces
-  (`oh-my-tmux`). On nix-darwin the Brewfile is *not* applied automatically;
+  (`oh-my-tmux`, and `antidote` unless the flake already provides it). On
+  nix-darwin the Brewfile is *not* applied automatically;
   run `brew bundle --file=Brewfile` by hand if you also want the casks.
 
 `install.sh` is safe to re-run; every step checks whether its target already
@@ -149,7 +150,8 @@ isn't packaged for Debian/Ubuntu.
 | `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
 | `bootstrap.sh` | One-time bare-repo checkout for a brand new machine. |
 | `install.sh` | OS-detecting package/tool installer, run after `bootstrap.sh`. |
-| `.antigen.zsh` | Vendored copy of [antigen](https://github.com/zsh-users/antigen), used as the Linux zsh-plugin-manager fallback (macOS uses Homebrew's copy instead). |
+| `.zsh_plugins.txt` | zsh plugin bundles, loaded by [antidote](https://github.com/mattmc3/antidote). Edit and open a new shell — the static cache under `~/.cache/antidote/` rebuilds itself; run `antidote update` to update the plugins. |
+| `.zsh_plugins.p10k.txt` | Fallback powerlevel10k, used only where no native package provides it (i.e. Debian/Ubuntu). |
 | `.dots_archive/` | Retired scripts/configs kept for reference only — not part of the active install path. |
 
 ## Shell auto-tmux behavior

@@ -18,13 +18,11 @@ brew "libyaml"
 brew "tree"
 # Automate deployment, configuration, and upgrading
 brew "ansible"
-# NOTE: `brew "antigen"` was removed. The formula is deprecated
-# (`deprecate! date: "2025-11-22", because: :unmaintained`) and becomes a hard
-# `disable!` on 2026-11-22 — and one hard error aborts the entire bundle, the
-# same failure mode that made this Brewfile install nothing at all.
-# .zshrc already falls back to the vendored ~/.antigen.zsh, which is the same
-# 2019 code Homebrew was shipping, so this changes nothing at runtime today.
-# Migrating to a maintained plugin manager is still open — see issue #26.
+# NOTE: `brew "antigen"` was removed (deprecated upstream, hard `disable!` on
+# 2026-11-22, and one hard error aborts the entire bundle). The plugin stack
+# now runs on antidote instead — see .zsh_plugins.txt. antidote is deliberately
+# NOT a brew entry: it's pure zsh, and .zshrc/install.sh clone it so that one
+# mechanism covers macOS, apt and Nix alike.
 # Codec library for encoding and decoding AV1 video streams
 brew "aom"
 # Tool for generating GNU Standards-compliant Makefiles
@@ -161,6 +159,10 @@ brew "node"
 brew "poppler"
 # Object-relational database system
 brew "postgresql@17"
+# A Zsh theme
+# (.zshrc prefers this over the antidote-managed copy in .zsh_plugins.p10k.txt,
+# so brew keeps the theme updated along with everything else.)
+brew "powerlevel10k"
 # Convert bitmaps to vector graphics
 brew "potrace"
 # Python version management
