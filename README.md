@@ -29,11 +29,17 @@ $HOME/install.sh
 ```
 
 - **macOS**: installs Homebrew if it's missing, then `brew bundle --file=Brewfile`.
-- **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo (modern
-  `signed-by` keyring, not the deprecated `apt-key`), installs everything in
-  `apt-packages.txt` via `apt install`, and installs `nvm`/`pyenv`/`oh-my-tmux`
-  via their own upstream installers since none of those are reliable apt
-  packages.
+- **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo on amd64
+  (modern `signed-by` keyring in `/etc/apt/keyrings`, not the deprecated
+  `apt-key`), installs everything in `apt-packages.txt`, and installs
+  `neovim`/`nvm`/`pyenv`/`oh-my-tmux` via their own upstream installers since
+  none of those are reliable apt packages. Unavailable packages are reported
+  and skipped rather than failing the install.
+  - GUI apps live in `apt-packages-desktop.txt` and are only installed when a
+    display environment is detected. Force it either way with
+    `DOTFILES_DESKTOP=1` / `DOTFILES_DESKTOP=0`.
+  - Your login shell is switched to zsh only if a zsh outside the Nix store is
+    listed in `/etc/shells`; otherwise it says so and moves on.
 - **NixOS**: skips package installation entirely — packages for NixOS
   machines are declared in a separate flake/home-manager repo, not here.
   Only sets up the non-package pieces (`oh-my-tmux`).
@@ -81,6 +87,7 @@ rather than a dotfiles alias — run `topgrade` directly.
 | `.config/lf/lfrc` | [lf](https://github.com/gokcehan/lf) file manager config. |
 | `Brewfile` | macOS package manifest (`brew bundle --file=Brewfile`). |
 | `apt-packages.txt` | Linux (apt) package manifest — a curated core set, not a full mirror of `Brewfile`; extend as needed per-distro. |
+| `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
 | `bootstrap.sh` | One-time bare-repo checkout for a brand new machine. |
 | `install.sh` | OS-detecting package/tool installer, run after `bootstrap.sh`. |
 | `.antigen.zsh` | Vendored copy of [antigen](https://github.com/zsh-users/antigen), used as the Linux zsh-plugin-manager fallback (macOS uses Homebrew's copy instead). |
@@ -90,5 +97,20 @@ rather than a dotfiles alias — run `topgrade` directly.
 
 Opening a new interactive terminal automatically attaches to a single shared
 tmux session named `main` (creating it if it doesn't exist yet), instead of
-spawning a new session per terminal window. See the `exec tmux new-session -A
--s main` line in `.zshrc`.
+spawning a new session per terminal window. See the `tmux new-session -A -s
+main` block at the **end** of `.zshrc`.
+
+It has to stay last in the file: that shell becomes the tmux *server* on the
+first terminal, so anything set after it never reaches the server's
+environment — including the `~/.local/bin` entry that `tmux.conf.local` needs
+to find `lazy-tmux`.
+
+Opt out with either of:
+
+```sh
+NO_AUTO_TMUX=1     # set in your environment
+```
+
+It's also skipped automatically in VS Code/Cursor integrated terminals, where
+auto-tmux breaks shell integration. If tmux fails to start, you're left at a
+normal shell rather than a closed window.
