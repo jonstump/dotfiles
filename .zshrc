@@ -26,9 +26,6 @@ elif [ -s "$HOME/.antigen.zsh" ]; then
   source "$HOME/.antigen.zsh"
 fi
 
-# allows for terraform to be accessed globally
-# export PATH=$HOME/terraform/:$PATH
-
 # Nix. Deliberately after the .zprofile source above (which runs
 # `brew shellenv`): on macOS 14+ that goes through path_helper, which rebuilds
 # PATH from /etc/paths first and demotes every /nix entry behind /usr/bin and
@@ -145,15 +142,9 @@ unset _p10k_theme
 #Custom Variables
 DOTFILES="$HOME/Repos/dotfiles"
 
-# export MANPATH="/usr/local/man:$MANPATH"
-
-# Preferred editor for local and remote sessions
-if [[ -n $SSH_CONNECTION ]]; then
-  export EDITOR=nvim
-else
-  export EDITOR=vim
-fi
-
+# Preferred editor. (There was an SSH_CONNECTION branch above this picking
+# nvim vs vim, but an unconditional `export EDITOR=nvim` directly beneath it
+# overwrote both arms, so it never had any effect.)
 export EDITOR=nvim
 
 # Used by .config/lf/lfrc to hand off non-text files to the OS's opener

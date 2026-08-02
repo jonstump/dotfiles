@@ -4,8 +4,8 @@
 # This is a starting core set, not a full mirror of Brewfile — package names
 # and availability vary by distro/release, so verify with `apt-cache search`
 # on the actual box before assuming something here is right. Tools without a
-# reliable native package (pyenv, nvm, topgrade, oh-my-tmux, etc.) are
-# installed separately by install.sh via their own upstream installers.
+# reliable native package (neovim, pyenv, nvm, topgrade, lazygit, oh-my-tmux)
+# are installed separately by install.sh via their own upstream installers.
 #
 # Desktop/GUI apps live in apt-packages-desktop.txt instead, so a headless box
 # doesn't get them.
