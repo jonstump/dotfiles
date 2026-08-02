@@ -8,10 +8,21 @@ set icons true
 # use either file extensions and/or mime types here. Below uses an editor for
 # text files and a file opener for the rest.
 
+# `setsid` is util-linux; macOS has never shipped it and has no BSD
+# equivalent. Since stderr went to /dev/null too, every non-text open on macOS
+# silently did nothing — which defeats the point of `export OPENER=open` in
+# .zshrc. macOS's `open` detaches on its own, so setsid isn't needed there.
+# (Loop variable renamed so it stops shadowing lf's own $f.)
 cmd open ${{
     test -L $f && f=$(readlink -f $f)
     case $(file --mime-type $f -b) in
         text/*) $EDITOR $fx;;
-        *) for f in $fx; do setsid $OPENER $f > /dev/null 2> /dev/null & done;;
+        *)  for target in $fx; do
+                if command -v setsid >/dev/null 2>&1; then
+                    setsid -f $OPENER "$target" >/dev/null 2>&1
+                else
+                    $OPENER "$target" >/dev/null 2>&1 &
+                fi
+            done;;
     esac
 }}

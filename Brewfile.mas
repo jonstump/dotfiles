@@ -1,0 +1,42 @@
+# Mac App Store entries, split out of the main Brewfile.
+#
+# `mas` can only install titles already associated with the signed-in Apple ID
+# — it can't purchase, and on modern macOS it can't sign in either. On a brand
+# new machine that hasn't been signed into the App Store, every one of these
+# fails. Since `brew bundle` aborts the whole run on a hard error, keeping them
+# in the main Brewfile put the entire install at their mercy.
+#
+# So: sign in to the App Store first, then run this by hand:
+#
+#     brew bundle --file=Brewfile.mas
+#
+# NOTE: "Delicious Library 3" was pulled from the App Store. Verify with
+# `mas info 635124250` before relying on it.
+
+mas "1Blocker", id: 1365531024
+mas "ColorSlurp", id: 1287239339
+mas "Delicious Library 3", id: 635124250
+mas "Disk Cleaner", id: 970246631
+mas "Gapplin", id: 768053424
+mas "GarageBand", id: 682658836
+mas "HexColor", id: 446103121
+mas "iMovie", id: 408981434
+mas "Infuse", id: 1136220934
+mas "Keynote", id: 409183694
+mas "Magnet", id: 441258766
+mas "MeetingBar", id: 1532419400
+mas "Messenger", id: 1480068668
+mas "Moom Classic", id: 419330170
+mas "OneTab", id: 1540160809
+mas "PiPer", id: 1421915518
+mas "Postico", id: 1031280567
+mas "QR Capture", id: 1369524274
+mas "Reeder", id: 1529448980
+mas "SenPlayer", id: 6443975850
+mas "Slack", id: 803453959
+mas "Spark", id: 1176895641
+mas "Supernote Partner", id: 1494992020
+mas "Tailscale", id: 1475387142
+mas "Termius", id: 1176074088
+mas "The Unarchiver", id: 425424353
+mas "WireGuard", id: 1451685025

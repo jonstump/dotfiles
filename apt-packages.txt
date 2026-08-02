@@ -4,8 +4,8 @@
 # This is a starting core set, not a full mirror of Brewfile — package names
 # and availability vary by distro/release, so verify with `apt-cache search`
 # on the actual box before assuming something here is right. Tools without a
-# reliable native package (pyenv, nvm, topgrade, oh-my-tmux, etc.) are
-# installed separately by install.sh via their own upstream installers.
+# reliable native package (neovim, pyenv, nvm, topgrade, lazygit, oh-my-tmux)
+# are installed separately by install.sh via their own upstream installers.
 #
 # Desktop/GUI apps live in apt-packages-desktop.txt instead, so a headless box
 # doesn't get them.
@@ -24,6 +24,18 @@ lf
 # listed here so re-runs keep them.
 gnupg
 ca-certificates
+
+# Needed by things this repo actually ships:
+# unzip            — install.sh's Nerd Font step
+# command-not-found — .zshrc enables the oh-my-zsh plugin, which sources
+#                     /etc/zsh_command_not_found from this package
+# cifs-utils       — mount.cifs, for a `synology`-style alias in
+#                    ~/.zsh_aliases.local
+# fontconfig       — fc-cache, after the font install
+unzip
+command-not-found
+cifs-utils
+fontconfig
 
 # CLI utilities
 htop
