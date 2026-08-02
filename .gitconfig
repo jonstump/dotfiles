@@ -1,0 +1,32 @@
+# Identity is deliberately NOT tracked here — this repo is public. Put it in
+# ~/.gitconfig.local, which the include below picks up:
+#
+#   [user]
+#       name = Your Name
+#       email = you@example.com
+#
+# Without that file, `git commit` (and the `config commit` flow in README.md)
+# fails with "Please tell me who you are" on a fresh machine.
+[include]
+	path = ~/.gitconfig.local
+
+# git-delta is installed by both Brewfile and apt-packages.txt, but it only
+# does anything once it's wired up as git's pager.
+[core]
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	line-numbers = true
+
+[merge]
+	conflictstyle = zdiff3
+
+[init]
+	defaultBranch = main
+
+[pull]
+	ff = only
