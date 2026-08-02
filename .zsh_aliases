@@ -9,12 +9,6 @@ alias ga='git add'
 alias gc='git commit -m'
 alias gp='git push'
 alias gclone='git clone'
-update() {
-  command -v brew >/dev/null 2>&1 && { brew update && brew upgrade && brew cleanup; }
-  command -v apt >/dev/null 2>&1 && { sudo apt update && apt list --upgradeable && sudo apt upgrade -y && sudo apt autoremove -y; }
-  command -v flatpak >/dev/null 2>&1 && flatpak update -y
-  command -v snap >/dev/null 2>&1 && sudo snap refresh
-}
 alias icat="kitty +kitten icat"
 alias v="nvim"
 alias integrated="sudo prime-select intel && sleep 45 && reboot"
