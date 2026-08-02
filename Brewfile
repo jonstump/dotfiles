@@ -4,6 +4,7 @@ tap "alchemmist/tap"
 tap "buo/cask-upgrade"
 tap "charmbracelet/tap"
 tap "heroku/brew"
+tap "homebrew/cask-fonts"
 tap "homebrew-zathura/zathura", "https://github.com/homebrew-zathura/homebrew-zathura.git"
 tap "homebrew/bundle"
 tap "homebrew/cask"
@@ -214,6 +215,8 @@ brew "wtfutil"
 brew "charmbracelet/tap/crush", trusted: true
 # Application launcher and productivity software
 cask "alfred"
+# Quick reference cheat sheet overlay for the active app
+cask "cheatsheet"
 # Android SDK component
 cask "android-platform-tools"
 # E-books management software
@@ -302,6 +305,18 @@ cask "wezterm"
 cask "zen"
 # Video communication and virtual meeting platform
 cask "zoom"
+# Audio editor and recorder
+cask "audacity"
+# iZotope product installer/updater
+cask "izotope-product-portal"
+# Digital game distribution client
+cask "steam"
+# Digital audio workstation
+cask "reaper"
+# Virtual tabletop for tabletop RPGs
+cask "fantasy-grounds"
+# Adobe Creative Cloud desktop app
+cask "adobe-creative-cloud"
 mas "1Blocker", id: 1365531024
 mas "ColorSlurp", id: 1287239339
 mas "Delicious Library 3", id: 635124250
