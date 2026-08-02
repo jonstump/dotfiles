@@ -24,8 +24,13 @@ brew "libyaml"
 brew "tree"
 # Automate deployment, configuration, and upgrading
 brew "ansible"
-# Plugin manager for zsh, inspired by oh-my-zsh and vundle
-brew "antigen"
+# NOTE: `brew "antigen"` was removed. The formula is deprecated
+# (`deprecate! date: "2025-11-22", because: :unmaintained`) and becomes a hard
+# `disable!` on 2026-11-22 — and one hard error aborts the entire bundle, the
+# same failure mode that made this Brewfile install nothing at all.
+# .zshrc already falls back to the vendored ~/.antigen.zsh, which is the same
+# 2019 code Homebrew was shipping, so this changes nothing at runtime today.
+# Migrating to a maintained plugin manager is still open — see issue #26.
 # Codec library for encoding and decoding AV1 video streams
 brew "aom"
 # Tool for generating GNU Standards-compliant Makefiles
