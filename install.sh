@@ -10,16 +10,39 @@
 #   here — this only sets up the non-package config pieces (oh-my-tmux).
 set -euo pipefail
 
-DOTFILES_DIR="$HOME/Repos/dotfiles"
+# Everything here is resolved relative to the script itself. (There used to be
+# a DOTFILES_DIR pointing at the bare repo, but nothing referenced it —
+# install.sh doesn't need to know about the bare-repo layout.)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 detect_os() {
-  if [ -f /etc/NIXOS ] || { [ -f /etc/os-release ] && grep -qi '^ID=nixos' /etc/os-release; }; then
+  # /etc/NIXOS is the canonical marker. The os-release fallback sources the
+  # file rather than grepping it: the spec permits `ID="nixos"`, and an
+  # unanchored grep would also match `ID=nixos-something`.
+  if [ -e /etc/NIXOS ] || \
+     { [ -r /etc/os-release ] && [ "$( . /etc/os-release; printf '%s' "${ID:-}" )" = nixos ]; }; then
     echo "nixos"
-  elif [ "$(uname -s)" = "Darwin" ]; then
-    echo "mac"
-  elif command -v apt >/dev/null 2>&1; then
+    return
+  fi
+
+  if [ "$(uname -s)" = "Darwin" ]; then
+    # nix-darwin looks exactly like plain macOS to `uname`, so it used to fall
+    # into install_mac — installing Homebrew and running the whole Brewfile,
+    # much of which the flake already provides. Keep brew as a choice there.
+    if [ -e /run/current-system/sw/bin/darwin-rebuild ]; then
+      echo "nix-darwin"
+    else
+      echo "mac"
+    fi
+    return
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
     echo "apt"
+  elif command -v nix >/dev/null 2>&1; then
+    # Nix on Fedora/Arch/anything else used to fall through to "unknown" and
+    # do nothing at all — not even the platform-independent oh-my-tmux clone.
+    echo "nix"
   else
     echo "unknown"
   fi
@@ -40,6 +63,96 @@ install_nvm() {
   fi
 }
 
+# Debian renames both of these to avoid clashing with existing packages: the
+# `bat` deb ships /usr/bin/batcat and `fd-find` ships /usr/bin/fdfind, so `bat`
+# and `fd` are "command not found" after a successful install. Symlinking into
+# ~/.local/bin (already on PATH) fixes non-interactive callers too, which
+# aliases alone can't.
+link_debian_renamed_bins() {
+  mkdir -p "$HOME/.local/bin"
+  local real alias_name
+  for pair in "batcat:bat" "fdfind:fd"; do
+    real="${pair%%:*}"
+    alias_name="${pair##*:}"
+    if command -v "$real" >/dev/null 2>&1 && ! command -v "$alias_name" >/dev/null 2>&1; then
+      ln -sf "$(command -v "$real")" "$HOME/.local/bin/$alias_name"
+    fi
+  done
+}
+
+# kitty.conf asks for "mononoki Nerd Font Mono". No Nerd Font is packaged in
+# the Debian/Ubuntu archive (fonts-mononoki is upstream Mononoki, not the
+# patched build), so kitty falls back to a default and powerlevel10k and
+# LazyVim icons render as tofu.
+install_nerd_font() {
+  local dir="$HOME/.local/share/fonts"
+  if [ -n "$(find "$dir" -iname 'Mononoki*Nerd*' -print -quit 2>/dev/null)" ]; then
+    return
+  fi
+  if ! command -v unzip >/dev/null 2>&1; then
+    echo "Skipping Nerd Font install: unzip is not available." >&2
+    return
+  fi
+
+  echo "Installing Mononoki Nerd Font"
+  mkdir -p "$dir"
+  local tmp
+  tmp="$(mktemp -d)"
+  if curl -fsSL -o "$tmp/mononoki.zip" \
+       https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Mononoki.zip \
+     && unzip -oq "$tmp/mononoki.zip" -d "$dir"; then
+    command -v fc-cache >/dev/null 2>&1 && fc-cache -f >/dev/null
+  else
+    echo "WARNING: Nerd Font download failed; skipping." >&2
+  fi
+  rm -rf "$tmp"
+}
+
+# Prints the latest release tag of <owner>/<repo>, with any leading "v"
+# stripped. Needed because some projects put the version in their asset
+# filenames, so /releases/latest/download/ can't be used directly the way it
+# can for neovim.
+github_latest_version() {
+  curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
+    | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
+}
+
+# LazyVim's health check looks for lazygit, which has no candidate in the
+# Debian/Ubuntu archive.
+install_lazygit() {
+  command -v lazygit >/dev/null 2>&1 && return
+
+  local machine target
+  machine="$(uname -m)"
+  case "$machine" in
+    x86_64|amd64)  target="Linux_x86_64" ;;
+    aarch64|arm64) target="Linux_arm64" ;;
+    *)
+      echo "No upstream lazygit build for $machine — skipping." >&2
+      return
+      ;;
+  esac
+
+  local version
+  version="$(github_latest_version jesseduffield/lazygit)"
+  if [ -z "$version" ]; then
+    echo "WARNING: could not resolve the latest lazygit version; skipping." >&2
+    return
+  fi
+
+  echo "Installing lazygit $version ($target, upstream release)"
+  local tmp
+  tmp="$(mktemp -d)"
+  if curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v${version}/lazygit_${version}_${target}.tar.gz" \
+       | tar -xz -C "$tmp" lazygit; then
+    mkdir -p "$HOME/.local/bin"
+    install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
+  else
+    echo "WARNING: lazygit download failed; skipping." >&2
+  fi
+  rm -rf "$tmp"
+}
+
 install_pyenv() {
   if [ ! -d "$HOME/.pyenv" ]; then
     echo "Installing pyenv"
@@ -47,6 +160,11 @@ install_pyenv() {
   fi
 }
 
+# README.md points at topgrade for updates and apt-packages.txt claims
+# install.sh installs it — but nothing did, and it isn't packaged for
+# Debian/Ubuntu. (macOS was always fine; it's in the Brewfile.)
+# topgrade-rs publishes to PyPI, and pipx is already in apt-packages.txt, so
+# this is simpler than fetching and unpacking the release tarball per-arch.
 install_topgrade() {
   if ! command -v topgrade >/dev/null 2>&1; then
     echo "Installing topgrade"
@@ -68,6 +186,12 @@ install_mac() {
   # interactive shell, so a missing oh-my-tmux clone leaves a fresh Mac in an
   # unconfigured tmux with no obvious way out.
   install_oh_my_tmux
+
+  # The Homebrew nvm formula's caveats say to create this yourself, and nothing
+  # here did — so .zshrc's `[ -s "$NVM_DIR/nvm.sh" ]` failed, it fell through
+  # to the Homebrew copy, and nvm loaded with NVM_DIR pointing at a directory
+  # that didn't exist.
+  mkdir -p "$HOME/.nvm"
 
   # Package installation is the least reliable step here — a single broken or
   # disabled formula aborts the whole bundle. Don't let that take the rest of
@@ -269,11 +393,17 @@ install_apt() {
     echo "(Set DOTFILES_DESKTOP=1 to install them anyway.)"
   fi
 
+  link_debian_renamed_bins
   install_neovim
+  install_lazygit
+  install_topgrade
   install_nvm
   install_pyenv
-  install_topgrade
   install_oh_my_tmux
+
+  if want_desktop_packages; then
+    install_nerd_font
+  fi
 
   set_login_shell
 }
@@ -284,11 +414,32 @@ install_nixos() {
   install_oh_my_tmux
 }
 
+install_nix_darwin() {
+  echo "nix-darwin detected: packages are managed by your flake, so the" \
+       "Brewfile is not applied automatically."
+  echo "Run 'brew bundle --file=$SCRIPT_DIR/Brewfile' by hand if you also" \
+       "want the Homebrew casks."
+  install_oh_my_tmux
+  mkdir -p "$HOME/.nvm"
+}
+
+install_nix() {
+  echo "Nix detected on a non-NixOS host: packages come from your flake repo," \
+       "not this one. Only setting up non-package config here."
+  install_oh_my_tmux
+}
+
 case "$(detect_os)" in
-  mac)    install_mac ;;
-  apt)    install_apt ;;
-  nixos)  install_nixos ;;
-  *)      echo "Unrecognized OS/package manager — skipping package installation." >&2 ;;
+  mac)        install_mac ;;
+  apt)        install_apt ;;
+  nixos)      install_nixos ;;
+  nix-darwin) install_nix_darwin ;;
+  nix)        install_nix ;;
+  *)
+    # Still do the platform-independent part rather than skipping everything.
+    echo "Unrecognized OS/package manager — skipping package installation." >&2
+    install_oh_my_tmux
+    ;;
 esac
 
 echo

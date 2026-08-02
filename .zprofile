@@ -16,4 +16,13 @@ if [ -d "$PYENV_ROOT/bin" ]; then
 fi
 
 command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init --path)"
-command -v thefuck >/dev/null 2>&1 && eval "$(thefuck --alias)"
+
+# `thefuck --alias` is a Python interpreter startup on every shell. Define the
+# alias lazily so that cost is only paid if you actually use it.
+if command -v thefuck >/dev/null 2>&1; then
+  fuck() {
+    unset -f fuck
+    eval "$(thefuck --alias)"
+    fuck "$@"
+  }
+fi

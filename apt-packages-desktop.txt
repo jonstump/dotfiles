@@ -11,6 +11,16 @@
 # GPU-based terminal emulator
 kitty
 
+# .zshrc exports OPENER=xdg-open and .config/lf/lfrc uses it, but xdg-open is
+# absent from a stock system — so opening any non-text file in lf silently did
+# nothing (lfrc sends stderr to /dev/null).
+xdg-utils
+
+# Neovim shells out to these for "+y / "+p on Linux, so LazyVim's clipboard
+# integration fails without one. Installing both X11 and Wayland is harmless.
+xclip
+wl-clipboard
+
 # Instant messaging application focusing on security.
 # amd64 only — install.sh doesn't add the Signal repo on other architectures,
 # so this is skipped there.
