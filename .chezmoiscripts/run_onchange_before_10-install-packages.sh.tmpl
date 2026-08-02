@@ -1,0 +1,66 @@
+{{- $osReleaseID := "" -}}
+{{- if hasKey .chezmoi "osRelease" -}}
+{{-   $osReleaseID = get .chezmoi.osRelease "id" -}}
+{{- end -}}
+{{- if eq .chezmoi.os "darwin" -}}
+#!/usr/bin/env bash
+# macOS packages. `run_onchange_` means chezmoi re-runs this only when the
+# rendered script changes, and the Brewfile digest below is part of the
+# rendered script — so editing Brewfile is what triggers a re-run.
+#
+# Brewfile digest: {{ include "Brewfile" | sha256sum }}
+set -euo pipefail
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "Installing Homebrew"
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  [ -x "$brew_bin" ] && eval "$("$brew_bin" shellenv)" && break
+done
+
+brew bundle --file={{ joinPath .chezmoi.sourceDir "Brewfile" | quote }}
+{{- else if and (eq .chezmoi.os "linux") (ne $osReleaseID "nixos") -}}
+#!/usr/bin/env bash
+# Debian/Ubuntu-family packages. See the note above about `run_onchange_`.
+#
+# apt-packages.txt digest: {{ include "apt-packages.txt" | sha256sum }}
+set -euo pipefail
+
+if ! command -v apt >/dev/null 2>&1; then
+  echo "No apt on this machine — skipping package installation." >&2
+  exit 0
+fi
+
+# Adds a third-party apt repo with a modern signed-by keyring (not the
+# deprecated apt-key), if it isn't already configured.
+add_apt_repo() {
+  local name="$1" key_url="$2" repo_line="$3"
+  local keyring="/usr/share/keyrings/${name}.gpg"
+  local list_file="/etc/apt/sources.list.d/${name}.list"
+
+  if [ -f "$list_file" ]; then
+    return
+  fi
+
+  echo "Adding apt repo: $name"
+  curl -fsSL "$key_url" | gpg --dearmor | sudo tee "$keyring" >/dev/null
+  echo "$repo_line" | sudo tee "$list_file" >/dev/null
+}
+
+add_apt_repo signal-desktop \
+  "https://updates.signal.org/desktop/apt/keys.asc" \
+  "deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
+
+sudo apt update
+
+grep -v '^\s*#' {{ joinPath .chezmoi.sourceDir "apt-packages.txt" | quote }} \
+  | grep -v '^\s*$' \
+  | xargs sudo apt install -y
+{{- end -}}
+{{- /*
+NixOS and unrecognized systems render this template empty; chezmoi does not run
+empty scripts. Packages for NixOS machines are declared in a separate
+flake/home-manager repo, not here.
+*/ -}}

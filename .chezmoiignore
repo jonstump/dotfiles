@@ -1,0 +1,14 @@
+# Repo-only files: these live in the chezmoi source directory but are not
+# themselves dotfiles, so they must never be written into $HOME.
+#
+# Patterns are gitignore-style and matched against the *target* path relative
+# to $HOME, so they're anchored with a leading "/" — an unanchored "README.md"
+# would also swallow ~/.config/nvim/README.md.
+#
+# Anything else in the source directory whose name starts with "." (.git,
+# .dots_archive, .chezmoi*) is already ignored by chezmoi automatically.
+
+/README.md
+/Brewfile
+/apt-packages.txt
+/bootstrap.sh

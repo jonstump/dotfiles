@@ -78,7 +78,9 @@ antigen apply
 fi
 
 #Custom Variables
-DOTFILES="$HOME/Repos/dotfiles"
+# chezmoi's source directory — where the tracked copy of these dotfiles lives.
+# Hard-coded rather than `$(chezmoi source-path)` to keep shell startup fast.
+export DOTFILES="${XDG_DATA_HOME:-$HOME/.local/share}/chezmoi"
 
 # export MANPATH="/usr/local/man:$MANPATH"
 

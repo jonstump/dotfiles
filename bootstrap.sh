@@ -3,43 +3,54 @@
 # dotfiles repo exists locally, e.g.:
 #   curl -fsSL https://raw.githubusercontent.com/jonstump/dotfiles/main/bootstrap.sh | bash
 #
-# Clones the dotfiles as a bare repo and checks it out on top of $HOME using
-# the same `config` alias trick .zsh_aliases defines for day-to-day use.
-# After this finishes, open a new shell and run: $HOME/install.sh
+# Installs chezmoi (if it isn't already there), clones this repo into chezmoi's
+# source directory, backs up any pre-existing files chezmoi is about to manage,
+# then applies. The apply also runs the package/tooling scripts in
+# .chezmoiscripts/, so it may prompt for sudo on Linux.
+#
+# Everything here is idempotent; re-running it is a no-op plus a fresh apply.
 set -euo pipefail
 
-DOTFILES_REPO="https://github.com/jonstump/dotfiles.git"
-DOTFILES_DIR="$HOME/Repos/dotfiles"
+GITHUB_USER="jonstump"
+BIN_DIR="$HOME/.local/bin"
 BACKUP_DIR="$HOME/.dotfiles-backup"
 
-config() {
-  /usr/bin/git --git-dir="$DOTFILES_DIR" --work-tree="$HOME" "$@"
+install_chezmoi() {
+  if command -v chezmoi >/dev/null 2>&1; then
+    command -v chezmoi
+    return
+  fi
+
+  if [ "$(uname -s)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
+    brew install chezmoi >&2
+    command -v chezmoi
+    return
+  fi
+
+  echo "Installing chezmoi -> $BIN_DIR" >&2
+  mkdir -p "$BIN_DIR"
+  sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$BIN_DIR" >&2
+  echo "$BIN_DIR/chezmoi"
 }
 
-mkdir -p "$HOME/Repos"
+chezmoi_bin="$(install_chezmoi)"
 
-if [ ! -d "$DOTFILES_DIR" ]; then
-  echo "Cloning $DOTFILES_REPO -> $DOTFILES_DIR"
-  git clone --bare "$DOTFILES_REPO" "$DOTFILES_DIR"
-fi
+# `init` without --apply only clones the repo into the source directory and
+# writes chezmoi's config; nothing in $HOME is touched yet.
+"$chezmoi_bin" init "$GITHUB_USER"
 
-config config --local status.showUntrackedFiles no
+# A fresh OS install usually ships its own .zshrc/.zprofile/etc. chezmoi would
+# happily overwrite them, so move anything it's about to manage aside first.
+while IFS= read -r target; do
+  [ -z "$target" ] && continue
+  [ -e "$target" ] || continue
+  rel="${target#"$HOME"/}"
+  echo "Backing up existing $rel -> $BACKUP_DIR/$rel"
+  mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+  mv "$target" "$BACKUP_DIR/$rel"
+done < <("$chezmoi_bin" managed --include=files,symlinks --path-style=absolute)
 
-# A fresh OS install usually ships its own .zshrc/.zprofile/etc that would
-# collide with the checkout below. Move anything in the way aside instead of
-# letting `git checkout` refuse to run.
-conflicts="$(config checkout 2>&1 | grep -E '^\s' | awk '{print $1}' || true)"
-if [ -n "$conflicts" ]; then
-  echo "Backing up pre-existing files that would conflict, into $BACKUP_DIR"
-  while IFS= read -r file; do
-    [ -z "$file" ] && continue
-    mkdir -p "$BACKUP_DIR/$(dirname "$file")"
-    mv "$HOME/$file" "$BACKUP_DIR/$file"
-  done <<< "$conflicts"
-fi
-
-config checkout
+"$chezmoi_bin" apply
 
 echo
-echo "Dotfiles checked out to \$HOME. Open a new shell, then run:"
-echo "  \$HOME/install.sh"
+echo "Done. Open a new shell (or reattach tmux) to pick everything up."

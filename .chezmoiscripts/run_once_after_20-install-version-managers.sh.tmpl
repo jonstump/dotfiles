@@ -1,0 +1,28 @@
+{{- $osReleaseID := "" -}}
+{{- if hasKey .chezmoi "osRelease" -}}
+{{-   $osReleaseID = get .chezmoi.osRelease "id" -}}
+{{- end -}}
+{{- if and (eq .chezmoi.os "linux") (ne $osReleaseID "nixos") -}}
+#!/usr/bin/env bash
+# nvm and pyenv have no reliable apt package, so they're installed from their
+# own upstream installers. macOS gets both from the Brewfile instead, and NixOS
+# gets them from its flake, so this script only renders on apt-family Linux.
+set -euo pipefail
+
+if [ ! -d "$HOME/.nvm" ]; then
+  echo "Installing nvm"
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+fi
+
+if [ ! -d "$HOME/.pyenv" ]; then
+  echo "Installing pyenv"
+  curl https://pyenv.run | bash
+fi
+
+# .zshrc's auto-tmux and antigen setup assume zsh is the login shell.
+zsh_bin="$(command -v zsh || true)"
+if [ -n "$zsh_bin" ] && [ "${SHELL:-}" != "$zsh_bin" ]; then
+  echo "Setting login shell to $zsh_bin"
+  sudo chsh -s "$zsh_bin" "$USER"
+fi
+{{- end -}}

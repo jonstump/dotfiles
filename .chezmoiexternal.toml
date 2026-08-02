@@ -1,0 +1,13 @@
+# Third-party trees that are cloned into $HOME rather than vendored here.
+# `chezmoi apply` clones these on first run and refreshes them on the schedule
+# below; `chezmoi update` always refreshes them.
+
+# Sourced by .config/tmux/tmux.conf.
+[".local/share/tmux/oh-my-tmux"]
+    type = "git-repo"
+    url = "https://github.com/gpakosz/.tmux.git"
+    refreshPeriod = "168h"
+    [".local/share/tmux/oh-my-tmux".clone]
+        args = ["--depth", "1"]
+    [".local/share/tmux/oh-my-tmux".pull]
+        args = ["--ff-only"]
