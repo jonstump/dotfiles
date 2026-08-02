@@ -29,17 +29,12 @@ $HOME/install.sh
 ```
 
 - **macOS**: installs Homebrew if it's missing, then `brew bundle --file=Brewfile`.
-- **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo on amd64
-  (modern `signed-by` keyring in `/etc/apt/keyrings`, not the deprecated
-  `apt-key`), installs everything in `apt-packages.txt`, and installs
-  `neovim`/`nvm`/`pyenv`/`oh-my-tmux` via their own upstream installers since
-  none of those are reliable apt packages. Unavailable packages are reported
-  and skipped rather than failing the install.
-  - GUI apps live in `apt-packages-desktop.txt` and are only installed when a
-    display environment is detected. Force it either way with
-    `DOTFILES_DESKTOP=1` / `DOTFILES_DESKTOP=0`.
-  - Your login shell is switched to zsh only if a zsh outside the Nix store is
-    listed in `/etc/shells`; otherwise it says so and moves on.
+- **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo (modern
+  `signed-by` keyring, not the deprecated `apt-key`), installs everything in
+  `apt-packages.txt` via `apt install`, and installs `nvm`/`pyenv`/`topgrade`/
+  `oh-my-tmux` via their own upstream installers since none of those are
+  reliable apt packages (`topgrade` comes from PyPI via `pipx install
+  topgrade`, using the `pipx` apt already installed).
 - **NixOS**: skips package installation entirely — packages for NixOS
   machines are declared in a separate flake/home-manager repo, not here.
   Only sets up the non-package pieces (`oh-my-tmux`).
