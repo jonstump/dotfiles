@@ -4,7 +4,7 @@
 # This is a starting core set, not a full mirror of Brewfile — package names
 # and availability vary by distro/release, so verify with `apt-cache search`
 # on the actual box before assuming something here is right. Tools without a
-# reliable native package (pyenv, rbenv, nvm, topgrade, oh-my-tmux, etc.) are
+# reliable native package (pyenv, nvm, topgrade, oh-my-tmux, etc.) are
 # installed separately by install.sh via their own upstream installers.
 
 build-essential
@@ -15,7 +15,8 @@ wget
 zsh
 tmux
 neovim
-ranger
+kitty
+lf
 
 # CLI utilities
 htop
@@ -35,12 +36,10 @@ syncthing
 wireguard-tools
 ansible
 
-# Languages / toolchains (base interpreters only — pyenv/rbenv manage versions)
+# Languages / toolchains (base interpreters only — pyenv manages versions)
 python3
 python3-pip
 pipx
 
-# Apps installed via the repos install.sh configures
-code
+# Apps installed via the repo install.sh configures
 signal-desktop
-spotify-client

@@ -33,8 +33,6 @@ elif [ -n "$IS_MAC" ] && [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
   [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"
 fi
 
-command -v rbenv >/dev/null 2>&1 && eval "$(rbenv init - zsh)"
-
 if command -v antigen >/dev/null 2>&1; then
 ## Antigen ##
 # Load oh-my-zsh via antigen

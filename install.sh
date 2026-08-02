@@ -5,7 +5,7 @@
 # Mac: Homebrew + Brewfile.
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
 #   plus upstream installers for the handful of tools apt doesn't reliably
-#   package (pyenv, rbenv, nvm, oh-my-tmux).
+#   package (pyenv, nvm, oh-my-tmux).
 # NixOS: packages are declared in a separate flake/home-manager repo, not
 #   here — this only sets up the non-package config pieces (oh-my-tmux).
 set -euo pipefail
@@ -47,14 +47,6 @@ install_pyenv() {
   fi
 }
 
-install_rbenv() {
-  if [ ! -d "$HOME/.rbenv" ]; then
-    echo "Installing rbenv"
-    git clone https://github.com/rbenv/rbenv.git "$HOME/.rbenv"
-    git clone https://github.com/rbenv/ruby-build.git "$HOME/.rbenv/plugins/ruby-build"
-  fi
-}
-
 install_mac() {
   if ! command -v brew >/dev/null 2>&1; then
     echo "Installing Homebrew"
@@ -85,17 +77,9 @@ add_apt_repo() {
 }
 
 install_apt() {
-  add_apt_repo vscode \
-    "https://packages.microsoft.com/keys/microsoft.asc" \
-    "deb [arch=amd64 signed-by=/usr/share/keyrings/vscode.gpg] https://packages.microsoft.com/repos/vscode stable main"
-
   add_apt_repo signal-desktop \
     "https://updates.signal.org/desktop/apt/keys.asc" \
     "deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
-
-  add_apt_repo spotify \
-    "https://download.spotify.com/debian/pubkey_C85668DF69375001.gpg" \
-    "deb [signed-by=/usr/share/keyrings/spotify.gpg] http://repository.spotify.com stable non-free"
 
   sudo apt update
 
@@ -103,7 +87,6 @@ install_apt() {
 
   install_nvm
   install_pyenv
-  install_rbenv
   install_oh_my_tmux
 
   sudo chsh -s "$(command -v zsh)" "$USER"

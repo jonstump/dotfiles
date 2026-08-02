@@ -169,12 +169,6 @@ brew "potrace"
 brew "pyenv"
 # Interpreted, interactive, object-oriented programming language
 brew "python@3.9"
-# File browser
-brew "ranger"
-# Install various Ruby versions and implementations
-brew "ruby-build"
-# Ruby version manager
-brew "rbenv"
 # Perl-powered file rename script with many helpful built-ins
 brew "rename"
 # Search tool like grep and The Silver Searcher
@@ -283,8 +277,6 @@ cask "schildichat"
 cask "setapp"
 # Instant messaging application focusing on security
 cask "signal"
-# Music streaming service
-cask "spotify"
 # Customise mouse buttons, wheels and cursor speed
 cask "steermouse"
 # Terminal emulator, SSH and serial client
@@ -295,8 +287,6 @@ cask "thunderbird"
 cask "transmission"
 # Custom Discord App
 cask "vesktop"
-# Open-source code editor
-cask "visual-studio-code"
 # Web browser with built-in email client focusing on customization and control
 cask "vivaldi"
 # GPU-accelerated cross-platform terminal emulator and multiplexer
@@ -344,36 +334,6 @@ mas "Tailscale", id: 1475387142
 mas "Termius", id: 1176074088
 mas "The Unarchiver", id: 425424353
 mas "WireGuard", id: 1451685025
-vscode "angular.ng-template"
-vscode "arcticicestudio.nord-visual-studio-code"
-vscode "dbaeumer.vscode-eslint"
-vscode "deerawan.vscode-dash"
-vscode "ekelley.midnight-synth"
-vscode "ginfuru.ginfuru-better-solarized-dark-theme"
-vscode "github.copilot-chat"
-vscode "google.geminicodeassist"
-vscode "googlecloudtools.cloudcode"
-vscode "googlecloudtools.datacloud"
-vscode "jdinhlife.gruvbox"
-vscode "johnpapa.angular2"
-vscode "ms-azuretools.vscode-containers"
-vscode "ms-azuretools.vscode-docker"
-vscode "ms-python.debugpy"
-vscode "ms-python.isort"
-vscode "ms-python.python"
-vscode "ms-python.vscode-pylance"
-vscode "ms-python.vscode-python-envs"
-vscode "ms-toolsai.jupyter"
-vscode "ms-toolsai.jupyter-keymap"
-vscode "ms-toolsai.vscode-jupyter-cell-tags"
-vscode "ms-toolsai.vscode-jupyter-slideshow"
-vscode "ms-vscode-remote.remote-containers"
-vscode "ms-vsliveshare.vsliveshare"
-vscode "naumovs.color-highlight"
-vscode "redhat.vscode-yaml"
-vscode "ritwickdey.liveserver"
-vscode "svelte.svelte-vscode"
-vscode "vscodevim.vim"
 cargo "cargo-update"
 cargo "nerdfix"
 npm "@angular/cli"
