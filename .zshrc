@@ -16,16 +16,6 @@ esac
 # After the uname block above, so the aliases can guard on IS_MAC/IS_LINUX.
 source "$HOME/.zsh_aliases"
 
-# Antigen: Homebrew's copy on Mac, vendored copy on Linux (apt doesn't ship
-# antigen at a consistent path across distros).
-# HOMEBREW_PREFIX comes from `brew shellenv` in .zprofile — hardcoding
-# /opt/homebrew missed on every Intel Mac, where the prefix is /usr/local.
-if [ -n "$IS_MAC" ] && [ -s "${HOMEBREW_PREFIX:-}/share/antigen/antigen.zsh" ]; then
-  source "${HOMEBREW_PREFIX}/share/antigen/antigen.zsh"
-elif [ -s "$HOME/.antigen.zsh" ]; then
-  source "$HOME/.antigen.zsh"
-fi
-
 # Nix. Deliberately after the .zprofile source above (which runs
 # `brew shellenv`): on macOS 14+ that goes through path_helper, which rebuilds
 # PATH from /etc/paths first and demotes every /nix entry behind /usr/bin and
@@ -77,11 +67,14 @@ fi
 # have, so it fails to exec and p10k silently falls back to a much slower
 # pure-zsh git backend. nixpkgs patches the theme to point at
 # ${gitstatus}/bin/gitstatusd, so prefer that copy when the flake/home-manager
-# repo has installed it, and let antigen handle it everywhere else.
+# repo has installed it. Homebrew's formula is next; on Debian/Ubuntu, where
+# p10k isn't reliably packaged, nothing matches and antidote loads it from
+# .zsh_plugins.p10k.txt below.
 _p10k_theme=""
 for _candidate in \
   /run/current-system/sw/share/zsh-powerlevel10k/powerlevel10k.zsh-theme \
-  "$HOME/.nix-profile/share/zsh-powerlevel10k/powerlevel10k.zsh-theme"
+  "$HOME/.nix-profile/share/zsh-powerlevel10k/powerlevel10k.zsh-theme" \
+  "${HOMEBREW_PREFIX:-}/share/powerlevel10k/powerlevel10k.zsh-theme"
 do
   if [ -e "$_candidate" ]; then
     _p10k_theme="$_candidate"
@@ -90,54 +83,62 @@ do
 done
 unset _candidate
 
-if command -v antigen >/dev/null 2>&1; then
-## Antigen ##
-# Load oh-my-zsh via antigen
-antigen use oh-my-zsh
+# Plugins, via antidote. This replaced antigen, which had no commits since 2019
+# and which Homebrew deprecated with a hard `disable!` on 2026-11-22 (#26). The
+# bundle list lives in ~/.zsh_plugins.txt.
+#
+# Prefer a packaged antidote — the flake repo can install it on Nix, Homebrew
+# has a formula — and fall back to a git clone. The clone is what Debian/Ubuntu
+# actually uses (no apt package across the versions this repo targets), and
+# it's why antidote was picked over sheldon: pure zsh, so one mechanism covers
+# all three platforms with nothing to add to any package manifest.
+_antidote=""
+for _candidate in \
+  /run/current-system/sw/share/antidote/antidote.zsh \
+  "$HOME/.nix-profile/share/antidote/antidote.zsh" \
+  "${HOMEBREW_PREFIX:-}/share/antidote/antidote.zsh" \
+  "$HOME/.antidote/antidote.zsh"
+do
+  if [ -e "$_candidate" ]; then
+    _antidote="$_candidate"
+    break
+  fi
+done
+unset _candidate
 
-# antigen plugin bundles
-antigen bundles <<EOBUNDLES
-  # Common aliases for terminal
-  common-aliases
+# install.sh clones antidote too. This is the self-heal path for a shell opened
+# before install.sh has run — on a fresh machine bootstrap.sh checks out this
+# .zshrc first, so the very next terminal would otherwise come up bare.
+if [ -z "$_antidote" ] && command -v git >/dev/null 2>&1; then
+  echo "Cloning antidote -> $HOME/.antidote"
+  if git clone --depth=1 https://github.com/mattmc3/antidote.git "$HOME/.antidote"; then
+    _antidote="$HOME/.antidote/antidote.zsh"
+  fi
+fi
 
-  # jump between directories
-  z
+if [ -n "$_antidote" ]; then
+  # oh-my-zsh's own updater would `git pull` inside a clone that antidote owns,
+  # leaving the two to fight over it; `antidote update` is the one updater now.
+  # Has to be set before the load, because use-omz sources OMZ's
+  # check_for_upgrade.sh as it loads.
+  zstyle ':omz:update' mode disabled
 
-  # Guess what to install when running an unknown command.
-  command-not-found
+  source "$_antidote"
 
-  # Syntax highlighter for zsh.
-  zsh-users/zsh-syntax-highlighting
-
-  # Ruby plugin
-  ruby
-
-  # Chruby plugin
-  chruby
-
-  # Gem plugin for ruby
-  gem
-
-  # add color to man pages
-  colored-man-pages
-
-  # autosuggestions for commands
-  zsh-users/zsh-autosuggestions
-
-  # completions for zsh
-  zsh-users/zsh-completions
-
-EOBUNDLES
-
-[ -n "$_p10k_theme" ] || antigen theme romkatv/powerlevel10k
-
-antigen apply
+  # Second argument is the generated static file. Without it antidote writes
+  # ~/.zsh_plugins.zsh next to the bundle file — and $HOME is this repo's work
+  # tree, so that's a generated file sitting in `config status` forever.
+  antidote load "$HOME/.zsh_plugins.txt" \
+    "${XDG_CACHE_HOME:-$HOME/.cache}/antidote/zsh_plugins.zsh"
 fi
 
 if [ -n "$_p10k_theme" ]; then
   source "$_p10k_theme"
+elif [ -n "$_antidote" ]; then
+  antidote load "$HOME/.zsh_plugins.p10k.txt" \
+    "${XDG_CACHE_HOME:-$HOME/.cache}/antidote/zsh_plugins.p10k.zsh"
 fi
-unset _p10k_theme
+unset _p10k_theme _antidote
 
 #Custom Variables
 DOTFILES="$HOME/Repos/dotfiles"
