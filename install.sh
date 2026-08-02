@@ -5,7 +5,7 @@
 # Mac: Homebrew + Brewfile.
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
 #   plus upstream installers for the handful of tools apt doesn't reliably
-#   package (pyenv, nvm, oh-my-tmux).
+#   package (pyenv, nvm, topgrade, oh-my-tmux).
 # NixOS: packages are declared in a separate flake/home-manager repo, not
 #   here — this only sets up the non-package config pieces (oh-my-tmux).
 set -euo pipefail
@@ -44,6 +44,13 @@ install_pyenv() {
   if [ ! -d "$HOME/.pyenv" ]; then
     echo "Installing pyenv"
     curl https://pyenv.run | bash
+  fi
+}
+
+install_topgrade() {
+  if ! command -v topgrade >/dev/null 2>&1; then
+    echo "Installing topgrade"
+    pipx install topgrade
   fi
 }
 
@@ -113,6 +120,7 @@ install_apt() {
 
   install_nvm
   install_pyenv
+  install_topgrade
   install_oh_my_tmux
 
   sudo chsh -s "$(command -v zsh)" "$USER"
