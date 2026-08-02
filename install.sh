@@ -10,7 +10,9 @@
 #   here — this only sets up the non-package config pieces (oh-my-tmux).
 set -euo pipefail
 
-DOTFILES_DIR="$HOME/Repos/dotfiles"
+# Everything here is resolved relative to the script itself. (There used to be
+# a DOTFILES_DIR pointing at the bare repo, but nothing referenced it —
+# install.sh doesn't need to know about the bare-repo layout.)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 detect_os() {
@@ -106,6 +108,15 @@ install_nerd_font() {
   rm -rf "$tmp"
 }
 
+# Prints the latest release tag of <owner>/<repo>, with any leading "v"
+# stripped. Needed because some projects put the version in their asset
+# filenames, so /releases/latest/download/ can't be used directly the way it
+# can for neovim.
+github_latest_version() {
+  curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
+    | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
+}
+
 # LazyVim's health check looks for lazygit, which has no candidate in the
 # Debian/Ubuntu archive.
 install_lazygit() {
@@ -122,11 +133,8 @@ install_lazygit() {
       ;;
   esac
 
-  # Unlike neovim's, lazygit's release assets carry the version in the
-  # filename, so /releases/latest/download/ can't be used directly.
   local version
-  version="$(curl -fsSL https://api.github.com/repos/jesseduffield/lazygit/releases/latest \
-             | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' | head -1)"
+  version="$(github_latest_version jesseduffield/lazygit)"
   if [ -z "$version" ]; then
     echo "WARNING: could not resolve the latest lazygit version; skipping." >&2
     return
@@ -141,6 +149,43 @@ install_lazygit() {
     install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
   else
     echo "WARNING: lazygit download failed; skipping." >&2
+  fi
+  rm -rf "$tmp"
+}
+
+# README.md points at topgrade for updates and apt-packages.txt claims
+# install.sh installs it — but nothing ever did, and it isn't packaged for
+# Debian/Ubuntu. (macOS was always fine; it's in the Brewfile.)
+install_topgrade() {
+  command -v topgrade >/dev/null 2>&1 && return
+
+  local machine target
+  machine="$(uname -m)"
+  case "$machine" in
+    x86_64|amd64)  target="x86_64-unknown-linux-gnu" ;;
+    aarch64|arm64) target="aarch64-unknown-linux-gnu" ;;
+    *)
+      echo "No upstream topgrade build for $machine — skipping." >&2
+      return
+      ;;
+  esac
+
+  local version
+  version="$(github_latest_version topgrade-rs/topgrade)"
+  if [ -z "$version" ]; then
+    echo "WARNING: could not resolve the latest topgrade version; skipping." >&2
+    return
+  fi
+
+  echo "Installing topgrade $version ($target, upstream release)"
+  local tmp
+  tmp="$(mktemp -d)"
+  if curl -fsSL "https://github.com/topgrade-rs/topgrade/releases/download/v${version}/topgrade-v${version}-${target}.tar.gz" \
+       | tar -xz -C "$tmp" topgrade; then
+    mkdir -p "$HOME/.local/bin"
+    install -m 0755 "$tmp/topgrade" "$HOME/.local/bin/topgrade"
+  else
+    echo "WARNING: topgrade download failed; skipping." >&2
   fi
   rm -rf "$tmp"
 }
@@ -376,6 +421,7 @@ install_apt() {
   link_debian_renamed_bins
   install_neovim
   install_lazygit
+  install_topgrade
   install_nvm
   install_pyenv
   install_oh_my_tmux
