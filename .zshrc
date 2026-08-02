@@ -1,16 +1,27 @@
-# Sources
-source $HOME/.zsh_aliases
-source $HOME/.zprofile
-
 case "$(uname -s)" in
   Darwin) IS_MAC=1 ;;
   Linux)  IS_LINUX=1 ;;
 esac
 
+# Sources
+#
+# zsh already reads .zprofile for login shells — and on macOS, Terminal/iTerm2/
+# kitty and every tmux pane start login shells, so sourcing it unconditionally
+# double-ran everything in it on essentially every shell: two `pyenv init
+# --path` calls accumulating duplicate PATH entries, and two Python
+# interpreter startups for `thefuck --alias`. Let .zprofile stay the single
+# owner of the PATH-establishing evals.
+[[ -o login ]] || source "$HOME/.zprofile"
+
+# After the uname block above, so the aliases can guard on IS_MAC/IS_LINUX.
+source "$HOME/.zsh_aliases"
+
 # Antigen: Homebrew's copy on Mac, vendored copy on Linux (apt doesn't ship
-# antigen at a consistent path across distros)
-if [ -n "$IS_MAC" ] && [ -s /opt/homebrew/share/antigen/antigen.zsh ]; then
-  source /opt/homebrew/share/antigen/antigen.zsh
+# antigen at a consistent path across distros).
+# HOMEBREW_PREFIX comes from `brew shellenv` in .zprofile — hardcoding
+# /opt/homebrew missed on every Intel Mac, where the prefix is /usr/local.
+if [ -n "$IS_MAC" ] && [ -s "${HOMEBREW_PREFIX:-}/share/antigen/antigen.zsh" ]; then
+  source "${HOMEBREW_PREFIX}/share/antigen/antigen.zsh"
 elif [ -s "$HOME/.antigen.zsh" ]; then
   source "$HOME/.antigen.zsh"
 fi
@@ -59,9 +70,9 @@ export NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
   . "$NVM_DIR/nvm.sh"
   [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
-elif [ -n "$IS_MAC" ] && [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
-  . "/opt/homebrew/opt/nvm/nvm.sh"
-  [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"
+elif [ -n "$IS_MAC" ] && [ -s "${HOMEBREW_PREFIX:-}/opt/nvm/nvm.sh" ]; then
+  . "${HOMEBREW_PREFIX}/opt/nvm/nvm.sh"
+  [ -s "${HOMEBREW_PREFIX}/opt/nvm/etc/bash_completion.d/nvm" ] && . "${HOMEBREW_PREFIX}/opt/nvm/etc/bash_completion.d/nvm"
 fi
 
 # powerlevel10k. The upstream theme ships a prebuilt gitstatusd that's
@@ -155,8 +166,11 @@ fi
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-if [ -n "$IS_MAC" ]; then
-  export PATH="/opt/homebrew/opt/postgresql@12/bin:$PATH"
+# postgresql@12 is a disabled formula and is no longer in the Brewfile; the
+# old line was also unconditional, so it parked a nonexistent directory at the
+# front of PATH forever. Guarded, and using the actual Homebrew prefix.
+if [ -n "$IS_MAC" ] && [ -d "${HOMEBREW_PREFIX:-}/opt/postgresql@17/bin" ]; then
+  export PATH="${HOMEBREW_PREFIX}/opt/postgresql@17/bin:$PATH"
 fi
 
 command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init -)"
@@ -164,6 +178,15 @@ command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init -)"
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 export PATH="$HOME/.local/bin:$PATH"
+
+# The seam with the separate flake/home-manager repo. This repo owns ~/.zshrc
+# on all three platforms; when home-manager needs to inject something (session
+# vars, store paths for plugins) it writes this file rather than taking over
+# ~/.zshrc, so exactly one system writes each path. See README.md.
+[ -f "$HOME/.config/zsh/nix-env.zsh" ] && source "$HOME/.config/zsh/nix-env.zsh"
+
+# Machine-specific overrides that don't belong in a shared repo. Untracked.
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
 
 # Attach to (or create) a single shared "main" tmux session instead of
 # spawning a new session for every terminal window.

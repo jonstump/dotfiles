@@ -155,6 +155,12 @@ brew "nethack"
 brew "nmap"
 # Manage multiple Node.js versions
 brew "nvm"
+# Platform built on V8 to build network applications.
+# Required by the `npm "..."` entries at the bottom of this file: brew bundle
+# resolves npm via which("npm", ORIGINAL_PATHS), and nvm is a shell function
+# that's invisible to it — so with nvm alone all twelve npm entries failed on a
+# fresh machine. nvm still handles per-project versions once you `nvm use`.
+brew "node"
 # PDF rendering library (based on the xpdf-3.0 code base)
 brew "poppler"
 # Object-relational database system

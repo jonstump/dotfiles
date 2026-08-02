@@ -1,4 +1,8 @@
 #===================ALIASES====================
+# Sourced from .zshrc *after* IS_MAC/IS_LINUX are set, so OS-specific aliases
+# can be guarded. Machine-specific ones (LAN addresses, uids, mount points)
+# belong in an untracked ~/.zsh_aliases.local — sourced at the bottom.
+
 # Example aliases
 alias zshconfig="nvim ~/.zshrc"
 alias ohmyzsh="nvim ~/.oh-my-zsh"
@@ -9,25 +13,70 @@ alias ga='git add'
 alias gc='git commit -m'
 alias gp='git push'
 alias gclone='git clone'
+alias gstat='git status'
 alias icat="kitty +kitten icat"
 alias v="nvim"
-alias integrated="sudo prime-select intel && sleep 45 && reboot"
-alias nvidia="sudo prime-select nvidia && sleep 45 && reboot"
-alias vpn='sudo cyberghostvpn --connect --country-code US'
-alias vpnstop='sudo cyberghostvpn --stop'
-alias vpnstat='cyberghostvpn --status'
-alias license='mklicense'
-alias synology='sudo mount.cifs //192.168.1.15/home /mnt/share -o credentials=$HOME/.ssh/credentials,uid=1000,gid=1000'
-alias spicetify="$HOME/spicetify-cli/spicetify"
-alias spicereload='spicetify backup apply enable-devtool'
+alias npmreinstall='rm -rf node_modules/ && npm install'
+
 # `command git` bypasses the git aliases above without hardcoding a path —
 # /usr/bin/git doesn't exist on NixOS, and on macOS it's only the Xcode CLT shim.
 alias config='command git --git-dir=$DOTFILES/ --work-tree=$HOME'
-alias npmreinstall='rm -rf node_modules/ && npm install'
-alias gstat='git status'
-alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
+
 alias dcr="docker compose run"
 alias dcd="docker compose down"
 alias dcu="docker compose up"
 alias dcb="docker compose build"
-alias lvim="$HOME/.local/bin/lvim"
+
+# Debian/Ubuntu rename both of these to avoid clashing with existing packages:
+# the `bat` deb ships /usr/bin/batcat and `fd-find` ships /usr/bin/fdfind, so
+# `bat` and `fd` are "command not found" after a successful install.
+# install.sh also symlinks them into ~/.local/bin, which covers non-interactive
+# use; these just make interactive shells work if that hasn't run yet.
+#
+# NB: written as `if` rather than `a && ! b && alias …` — zsh won't parse a
+# negation in the middle of an && chain ("parse error near `\n'"), even though
+# bash accepts it, and a parse error here breaks every shell.
+if command -v batcat >/dev/null 2>&1 && ! command -v bat >/dev/null 2>&1; then
+  alias bat='batcat'
+fi
+if command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
+  alias fd='fdfind'
+fi
+
+# Strip pyenv's shims from PATH for brew only. Guarded because the body is
+# single-quoted, so `$(pyenv root)` runs on *every* brew invocation — with
+# pyenv absent that printed "pyenv: command not found" to stderr each time and
+# degraded to a meaningless substitution.
+if [ -n "$IS_MAC" ] && command -v pyenv >/dev/null 2>&1; then
+  alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
+fi
+
+# Linux-only. prime-select and mount.cifs don't exist on macOS, and
+# `cyberghostvpn` is the Linux CLI — the cask in the Brewfile is a GUI app that
+# ships no such binary. The prime-select pair especially shouldn't be one typo
+# away on a Mac, given both end in `reboot`.
+if [ -n "$IS_LINUX" ]; then
+  alias integrated="sudo prime-select intel && sleep 45 && reboot"
+  alias nvidia="sudo prime-select nvidia && sleep 45 && reboot"
+  alias vpn='sudo cyberghostvpn --connect --country-code US'
+  alias vpnstop='sudo cyberghostvpn --stop'
+  alias vpnstat='cyberghostvpn --status'
+fi
+
+# Machine-specific aliases: NAS addresses, uid/gid, local mount points, paths
+# to hand-installed tools. Untracked, so it can differ per box.
+#
+# The old `synology` alias lived here and hardcoded //192.168.1.15/home with
+# uid=1000,gid=1000 — wrong on any other network, and wrong on any machine
+# where you aren't the first user. Example replacement:
+#
+#   if [ -n "$IS_LINUX" ]; then
+#     alias synology='sudo mount.cifs //192.168.1.15/home /mnt/share \
+#       -o credentials=$HOME/.ssh/credentials,uid=$(id -u),gid=$(id -g)'
+#   elif [ -n "$IS_MAC" ]; then
+#     alias synology='open smb://192.168.1.15/home'
+#   fi
+#
+# Also dropped from this file, as aliases for tools nothing here installs:
+# `license` (mklicense), `spicetify`/`spicereload`, `lvim`.
+[ -f "$HOME/.zsh_aliases.local" ] && source "$HOME/.zsh_aliases.local"
