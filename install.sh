@@ -91,9 +91,25 @@ install_apt() {
     "https://updates.signal.org/desktop/apt/keys.asc" \
     "deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
 
-  sudo apt update
+  sudo apt-get update
 
-  grep -v '^\s*#' "$SCRIPT_DIR/apt-packages.txt" | grep -v '^\s*$' | xargs sudo apt install -y
+  # apt is all-or-nothing: one unresolvable name means nothing gets installed,
+  # and `set -e` would then kill the rest of the installer. apt-packages.txt is
+  # explicitly a best-effort list (names vary by distro/release), so try the
+  # fast batch path first and fall back to per-package on failure.
+  local pkgs=()
+  while IFS= read -r pkg; do
+    [ -n "$pkg" ] && pkgs+=("$pkg")
+  done < <(sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' "$SCRIPT_DIR/apt-packages.txt")
+
+  if [ "${#pkgs[@]}" -gt 0 ]; then
+    if ! sudo apt-get install -y "${pkgs[@]}"; then
+      echo "Batch install failed; retrying package-by-package." >&2
+      for pkg in "${pkgs[@]}"; do
+        sudo apt-get install -y "$pkg" || echo "SKIP (unavailable): $pkg" >&2
+      done
+    fi
+  fi
 
   install_nvm
   install_pyenv
