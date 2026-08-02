@@ -91,6 +91,13 @@ fi
 
 export EDITOR=nvim
 
+# Used by .config/lf/lfrc to hand off non-text files to the OS's opener
+if [ -n "$IS_MAC" ]; then
+  export OPENER=open
+elif [ -n "$IS_LINUX" ]; then
+  export OPENER=xdg-open
+fi
+
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
