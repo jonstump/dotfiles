@@ -15,6 +15,12 @@ moved to `~/.dotfiles-backup` first instead of being overwritten.
 curl -fsSL https://raw.githubusercontent.com/jonstump/dotfiles/main/bootstrap.sh | bash
 ```
 
+Only `curl` is required up front — the script installs git itself if it's
+missing. On macOS that means kicking off the Xcode Command Line Tools install
+(git ships with them); accept the dialog, let it finish, then re-run the same
+command. On Linux it installs git via `apt-get`/`dnf`/`pacman`/`zypper`. On
+NixOS, run it inside `nix-shell -p git`.
+
 **2. Install tooling** — open a new shell, then run the OS-detecting
 installer that was just checked out:
 
