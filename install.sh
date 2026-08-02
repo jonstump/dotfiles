@@ -5,9 +5,10 @@
 # Mac: Homebrew + Brewfile.
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
 #   plus upstream installers for the handful of tools apt doesn't reliably
-#   package (pyenv, nvm, topgrade, oh-my-tmux).
+#   package (pyenv, nvm, topgrade, oh-my-tmux, antidote).
 # NixOS: packages are declared in a separate flake/home-manager repo, not
-#   here — this only sets up the non-package config pieces (oh-my-tmux).
+#   here — this only sets up the non-package config pieces (oh-my-tmux,
+#   antidote).
 set -euo pipefail
 
 # Everything here is resolved relative to the script itself. (There used to be
@@ -53,6 +54,34 @@ install_oh_my_tmux() {
   if [ ! -d "$target" ]; then
     echo "Cloning oh-my-tmux -> $target"
     git clone https://github.com/gpakosz/.tmux.git "$target"
+  fi
+}
+
+# zsh plugin manager, replacing antigen (#26). Cloned rather than installed as
+# a package because it's pure zsh and apt has no version of it across the
+# releases this repo targets, so one mechanism covers all three platforms.
+# .zshrc clones it too if it's missing; doing it here keeps the first shell
+# after install.sh from paying for it.
+install_antidote() {
+  local target="$HOME/.antidote" packaged
+  # Skip if the flake repo or Homebrew already provides one — .zshrc prefers
+  # those over the clone, so cloning anyway would leave an unused copy that
+  # nothing ever updates. (Written as an if rather than `[ -e ] && return`:
+  # that form leaves the loop with a non-zero status on the last iteration,
+  # which is a live grenade under the `set -e` at the top of this file.)
+  for packaged in \
+    /run/current-system/sw/share/antidote/antidote.zsh \
+    "$HOME/.nix-profile/share/antidote/antidote.zsh" \
+    "${HOMEBREW_PREFIX:-}/share/antidote/antidote.zsh"
+  do
+    if [ -e "$packaged" ]; then
+      return 0
+    fi
+  done
+
+  if [ ! -d "$target" ]; then
+    echo "Cloning antidote -> $target"
+    git clone --depth=1 https://github.com/mattmc3/antidote.git "$target"
   fi
 }
 
@@ -186,6 +215,7 @@ install_mac() {
   # interactive shell, so a missing oh-my-tmux clone leaves a fresh Mac in an
   # unconfigured tmux with no obvious way out.
   install_oh_my_tmux
+  install_antidote
 
   # The Homebrew nvm formula's caveats say to create this yourself, and nothing
   # here did — so .zshrc's `[ -s "$NVM_DIR/nvm.sh" ]` failed, it fell through
@@ -400,6 +430,7 @@ install_apt() {
   install_nvm
   install_pyenv
   install_oh_my_tmux
+  install_antidote
 
   if want_desktop_packages; then
     install_nerd_font
@@ -412,6 +443,7 @@ install_nixos() {
   echo "NixOS detected: packages are managed by your flake/home-manager repo," \
        "not this one. Only setting up non-package config here."
   install_oh_my_tmux
+  install_antidote
 }
 
 install_nix_darwin() {
@@ -420,6 +452,7 @@ install_nix_darwin() {
   echo "Run 'brew bundle --file=$SCRIPT_DIR/Brewfile' by hand if you also" \
        "want the Homebrew casks."
   install_oh_my_tmux
+  install_antidote
   mkdir -p "$HOME/.nvm"
 }
 
@@ -427,6 +460,7 @@ install_nix() {
   echo "Nix detected on a non-NixOS host: packages come from your flake repo," \
        "not this one. Only setting up non-package config here."
   install_oh_my_tmux
+  install_antidote
 }
 
 case "$(detect_os)" in
@@ -439,6 +473,7 @@ case "$(detect_os)" in
     # Still do the platform-independent part rather than skipping everything.
     echo "Unrecognized OS/package manager — skipping package installation." >&2
     install_oh_my_tmux
+    install_antidote
     ;;
 esac
 
