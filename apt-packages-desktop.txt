@@ -1,0 +1,17 @@
+# Desktop/GUI packages for Debian/Ubuntu-family Linux. Same format as
+# apt-packages.txt (one package per line, '#' comments allowed).
+#
+# install.sh only installs these when it detects a display environment
+# ($DISPLAY/$WAYLAND_DISPLAY, or /usr/share/{x,wayland}sessions). Force it
+# either way with DOTFILES_DESKTOP=1 / DOTFILES_DESKTOP=0.
+#
+# Like apt-packages.txt, this is best-effort: anything unavailable on the
+# running distro is reported and skipped rather than failing the install.
+
+# GPU-based terminal emulator
+kitty
+
+# Instant messaging application focusing on security.
+# amd64 only — install.sh doesn't add the Signal repo on other architectures,
+# so this is skipped there.
+signal-desktop

@@ -73,10 +73,28 @@ fi
 
 config config --local status.showUntrackedFiles no
 
+# `git clone --bare` deliberately omits remote.origin.fetch, which leaves the
+# repo with no remote-tracking branches: `config fetch` only writes FETCH_HEAD
+# and `config pull` can't fast-forward normally. Add the refspec back so the
+# day-to-day `config fetch`/`pull`/`push` documented in README.md behaves like
+# an ordinary clone.
+if [ -z "$(config config --get-all remote.origin.fetch || true)" ]; then
+  config config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+  config fetch origin
+  config branch --set-upstream-to=origin/main main 2>/dev/null || true
+fi
+
 # A fresh OS install usually ships its own .zshrc/.zprofile/etc that would
 # collide with the checkout below. Move anything in the way aside instead of
 # letting `git checkout` refuse to run.
-conflicts="$(config checkout 2>&1 | grep -E '^\s' | awk '{print $1}' || true)"
+#
+# Git lists the offending paths one per line, tab-indented. Strip only that
+# leading tab: splitting on whitespace (the old `awk '{print $1}'`) truncated
+# any path containing a space, so the backup `mv` failed, the retry checkout
+# aborted, and `set -e` killed the script with no message at all — bootstrap
+# appeared to finish with nothing checked out. LC_ALL=C keeps the surrounding
+# English strings stable if a translated git is ever in play.
+conflicts="$(LC_ALL=C config checkout 2>&1 | sed -n 's/^\t//p' || true)"
 if [ -n "$conflicts" ]; then
   echo "Backing up pre-existing files that would conflict, into $BACKUP_DIR"
   while IFS= read -r file; do
@@ -86,7 +104,11 @@ if [ -n "$conflicts" ]; then
   done <<< "$conflicts"
 fi
 
-config checkout
+config checkout || {
+  echo "checkout is still blocked — see the git output above." >&2
+  echo "Move the listed files aside by hand, then re-run this script." >&2
+  exit 1
+}
 
 echo
 echo "Dotfiles checked out to \$HOME. Open a new shell, then run:"
