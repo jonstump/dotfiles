@@ -47,7 +47,7 @@ This repo is checked out directly on top of `$HOME` via a bare repo at
 `~/Repos/dotfiles`, using the `config` alias defined in `.zsh_aliases`:
 
 ```sh
-alias config='/usr/bin/git --git-dir=$DOTFILES/ --work-tree=$HOME'
+alias config='command git --git-dir=$DOTFILES/ --work-tree=$HOME'
 ```
 
 Use `config` exactly like `git`, just pointed at your home directory instead
