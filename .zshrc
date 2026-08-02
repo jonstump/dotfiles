@@ -96,9 +96,11 @@ export EDITOR=nvim
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-#check to see if in a tmux session, if not run one
+#check to see if in a tmux session, if not attach to (or create) a single
+#shared "main" session instead of spawning a new session every time a
+#terminal is opened
 if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] && [[ ! "$TERM" =~ tmux ]] && [ -z "$TMUX" ]; then
-  exec tmux
+  exec tmux new-session -A -s main
 fi
 
 if [ -n "$IS_MAC" ]; then
