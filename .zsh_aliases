@@ -9,7 +9,12 @@ alias ga='git add'
 alias gc='git commit -m'
 alias gp='git push'
 alias gclone='git clone'
-alias update='sudo apt update && apt list --upgradeable && sleep 20 && apt autoremove && apt upgrade && brew update && brew upgrade && flatpak update && brew cleanup && sudo snap refresh'
+update() {
+  command -v brew >/dev/null 2>&1 && { brew update && brew upgrade && brew cleanup; }
+  command -v apt >/dev/null 2>&1 && { sudo apt update && apt list --upgradeable && sudo apt upgrade -y && sudo apt autoremove -y; }
+  command -v flatpak >/dev/null 2>&1 && flatpak update -y
+  command -v snap >/dev/null 2>&1 && sudo snap refresh
+}
 alias icat="kitty +kitten icat"
 alias v="nvim"
 alias integrated="sudo prime-select intel && sleep 45 && reboot"
@@ -19,7 +24,7 @@ alias vpnstop='sudo cyberghostvpn --stop'
 alias vpnstat='cyberghostvpn --status'
 alias license='mklicense'
 alias synology='sudo mount.cifs //192.168.1.15/home /mnt/share -o credentials=$HOME/.ssh/credentials,uid=1000,gid=1000'
-alias spicetify=/home/jmstump/spicetify-cli/spicetify
+alias spicetify="$HOME/spicetify-cli/spicetify"
 alias spicereload='spicetify backup apply enable-devtool'
 alias config='/usr/bin/git --git-dir=$DOTFILES/ --work-tree=$HOME'
 alias npmreinstall='rm -rf node_modules/ && npm install'
@@ -28,6 +33,5 @@ alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 alias dcr="docker compose run"
 alias dcd="docker compose down"
 alias dcu="docker compose up"
-alias dcd="docker compose down"
 alias dcb="docker compose build"
-alias lvim='/Users/jonathanstump/.local/bin/lvim'
+alias lvim="$HOME/.local/bin/lvim"

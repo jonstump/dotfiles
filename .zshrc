@@ -1,36 +1,41 @@
 # Sources
-#source $HOME/.antigen.zsh
-#source antigen with brew
-source /opt/homebrew/share/antigen/antigen.zsh
 source $HOME/.zsh_aliases
 source $HOME/.zprofile
 
-# Exports
-export PATH=/opt/homebrew/bin:$PATH
-# export KUBECONFIG=/Users/jonathanstump/kubeconfig
+case "$(uname -s)" in
+  Darwin) IS_MAC=1 ;;
+  Linux)  IS_LINUX=1 ;;
+esac
+
+# Antigen: Homebrew's copy on Mac, vendored copy on Linux (apt doesn't ship
+# antigen at a consistent path across distros)
+if [ -n "$IS_MAC" ] && [ -s /opt/homebrew/share/antigen/antigen.zsh ]; then
+  source /opt/homebrew/share/antigen/antigen.zsh
+elif [ -s "$HOME/.antigen.zsh" ]; then
+  source "$HOME/.antigen.zsh"
+fi
 
 # allows for terraform to be accessed globally
 # export PATH=$HOME/terraform/:$PATH
-# export TERM=kitty-term
 
-# for item in $(ls -1 ${HOME}/.profile.d/*.plugin.zsh); do
-  # [ -e "${item}" ] && source "${item}"
-# done
-#Nix for Mac
+# Nix (multi-user install; also how NixOS exposes its default profile)
 if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
   . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 fi
 
-#NVM for Mac with homebrew
+# NVM (nvm's own installer puts this in ~/.nvm on both Mac and Linux)
 export NVM_DIR="$HOME/.nvm"
-  [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && . "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
-  [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  . "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+elif [ -n "$IS_MAC" ] && [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
+  . "/opt/homebrew/opt/nvm/nvm.sh"
+  [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"
+fi
 
-# export for postgres
-# export PGDATA="/usr/local/var/postgres/12/"
-# export PGHOST="/tmp"
-eval "$(rbenv init - zsh)"
+command -v rbenv >/dev/null 2>&1 && eval "$(rbenv init - zsh)"
 
+if command -v antigen >/dev/null 2>&1; then
 ## Antigen ##
 # Load oh-my-zsh via antigen
 antigen use oh-my-zsh
@@ -72,6 +77,7 @@ EOBUNDLES
 antigen theme romkatv/powerlevel10k
 
 antigen apply
+fi
 
 #Custom Variables
 DOTFILES="$HOME/Repos/dotfiles"
@@ -95,9 +101,11 @@ if command -v tmux &> /dev/null && [ -n "$PS1" ] && [[ ! "$TERM" =~ screen ]] &&
   exec tmux
 fi
 
-# Neofetch to liven up the terminal on launch
-export PATH="/opt/homebrew/opt/postgresql@12/bin:$PATH"
-eval "$(pyenv init -)"
+if [ -n "$IS_MAC" ]; then
+  export PATH="/opt/homebrew/opt/postgresql@12/bin:$PATH"
+fi
+
+command -v pyenv >/dev/null 2>&1 && eval "$(pyenv init -)"
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
