@@ -1,0 +1,48 @@
+# zsh plugin bundles, loaded by antidote from .zshrc.
+#
+# Replaces the `antigen bundles` heredoc that used to live in .zshrc. Antigen
+# had no commits since 2019 and Homebrew deprecated the formula with a hard
+# `disable!` on 2026-11-22 (issue #26).
+#
+# After editing this file, the next new shell regenerates the static cache
+# automatically — antidote rebuilds it whenever this file is newer. To update
+# the plugins themselves, run `antidote update`.
+#
+# The theme is deliberately NOT here; .zshrc prefers a natively packaged
+# powerlevel10k and falls back to .zsh_plugins.p10k.txt. See the comment there.
+
+# Must come first. Sets $ZSH/$ZSH_CUSTOM/$ZSH_CACHE_DIR, lazy-loads the bits of
+# oh-my-zsh's lib each plugin actually needs, and — the part that matters most
+# here — defers compinit and queues the plugins' compdef calls until after
+# every plugin has had its chance to add to fpath. This is what `antigen use
+# oh-my-zsh` did, minus sourcing the whole lib eagerly.
+getantidote/use-omz
+ohmyzsh/ohmyzsh path:lib
+
+# Common aliases for terminal
+ohmyzsh/ohmyzsh path:plugins/common-aliases
+
+# jump between directories
+ohmyzsh/ohmyzsh path:plugins/z
+
+# Guess what to install when running an unknown command. Works on all three
+# platforms: the plugin sources Homebrew's own handler.sh on macOS (it lives in
+# core brew now, no tap needed), /usr/lib/command-not-found on Debian/Ubuntu
+# via the `command-not-found` package in apt-packages.txt, and
+# /run/current-system/sw/bin/command-not-found on NixOS.
+ohmyzsh/ohmyzsh path:plugins/command-not-found
+
+# add color to man pages
+ohmyzsh/ohmyzsh path:plugins/colored-man-pages
+
+# completions for zsh. kind:fpath adds the repo to $fpath without sourcing it,
+# which is all this plugin wants; use-omz's deferred compinit then picks it up.
+zsh-users/zsh-completions kind:fpath
+
+# Syntax highlighter for zsh. Wants to be sourced after anything that defines
+# widgets, and zsh-autosuggestions specifically documents wanting to come
+# after it — so these two stay last, in this order.
+zsh-users/zsh-syntax-highlighting
+
+# autosuggestions for commands
+zsh-users/zsh-autosuggestions
