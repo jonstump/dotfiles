@@ -4,12 +4,7 @@ tap "alchemmist/tap"
 tap "buo/cask-upgrade"
 tap "charmbracelet/tap"
 tap "heroku/brew"
-tap "homebrew/cask-fonts"
 tap "homebrew-zathura/zathura", "https://github.com/homebrew-zathura/homebrew-zathura.git"
-tap "homebrew/bundle"
-tap "homebrew/cask"
-tap "homebrew/core"
-tap "homebrew/services"
 tap "mongodb/brew"
 # GNU internationalization (i18n) and localization (l10n) library
 brew "gettext"
@@ -75,8 +70,6 @@ brew "coreutils"
 brew "ctop"
 # Open source programming language to build simple/reliable/efficient software
 brew "go"
-# Go dependency management tool
-brew "dep"
 # Linux utility to get information on filesystems, like df but better
 brew "dysk"
 # Command-line EPUB reader
@@ -147,8 +140,6 @@ brew "meson"
 brew "mosh"
 # Lightweight PDF and XPS viewer
 brew "mupdf"
-# Fast, highly customisable system info script
-brew "neofetch"
 # Ambitious Vim-fork focused on extensibility and agility
 brew "neovim"
 # Find/fix obsolete Nerd Font icons
@@ -162,13 +153,11 @@ brew "nvm"
 # PDF rendering library (based on the xpdf-3.0 code base)
 brew "poppler"
 # Object-relational database system
-brew "postgresql@12"
+brew "postgresql@17"
 # Convert bitmaps to vector graphics
 brew "potrace"
 # Python version management
 brew "pyenv"
-# Interpreted, interactive, object-oriented programming language
-brew "python@3.9"
 # Perl-powered file rename script with many helpful built-ins
 brew "rename"
 # Search tool like grep and The Silver Searcher
@@ -190,7 +179,7 @@ brew "the_silver_searcher"
 # Programmatically correct mistyped console commands
 brew "thefuck"
 # Simplified and community-driven man pages
-brew "tldr"
+brew "tlrc"
 # Terminal multiplexer
 brew "tmux"
 # Upgrade all the things
@@ -209,8 +198,6 @@ brew "wtfutil"
 brew "charmbracelet/tap/crush", trusted: true
 # Application launcher and productivity software
 cask "alfred"
-# Quick reference cheat sheet overlay for the active app
-cask "cheatsheet"
 # Android SDK component
 cask "android-platform-tools"
 # E-books management software
@@ -260,19 +247,12 @@ cask "kodi"
 cask "loopback"
 # File system integration
 cask "macfuse"
-# Unix terminal client for Mattermost
-cask "matterhorn"
 # Desktop client for the Matrix protocol
 cask "nheko"
 # Knowledge base that works on top of a local folder of plain text Markdown files
 cask "obsidian"
 # Document editor
 cask "onlyoffice"
-# Retro video game emulation
-cask "openemu"
-# Toolbox companion for QMK Firmware
-cask "qmk-toolbox"
-cask "schildichat"
 # Collection of apps available by subscription
 cask "setapp"
 # Instant messaging application focusing on security
@@ -303,8 +283,6 @@ cask "izotope-product-portal"
 cask "steam"
 # Digital audio workstation
 cask "reaper"
-# Virtual tabletop for tabletop RPGs
-cask "fantasy-grounds"
 # Adobe Creative Cloud desktop app
 cask "adobe-creative-cloud"
 mas "1Blocker", id: 1365531024
