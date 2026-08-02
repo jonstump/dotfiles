@@ -31,9 +31,10 @@ $HOME/install.sh
 - **macOS**: installs Homebrew if it's missing, then `brew bundle --file=Brewfile`.
 - **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo (modern
   `signed-by` keyring, not the deprecated `apt-key`), installs everything in
-  `apt-packages.txt` via `apt install`, and installs `nvm`/`pyenv`/`oh-my-tmux`
-  via their own upstream installers since none of those are reliable apt
-  packages.
+  `apt-packages.txt` via `apt install`, and installs `nvm`/`pyenv`/`topgrade`/
+  `oh-my-tmux` via their own upstream installers since none of those are
+  reliable apt packages (`topgrade` comes from PyPI via `pipx install
+  topgrade`, using the `pipx` apt already installed).
 - **NixOS**: skips package installation entirely — packages for NixOS
   machines are declared in a separate flake/home-manager repo, not here.
   Only sets up the non-package pieces (`oh-my-tmux`).
