@@ -33,8 +33,6 @@ elif [ -n "$IS_MAC" ] && [ -s "/opt/homebrew/opt/nvm/nvm.sh" ]; then
   [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && . "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"
 fi
 
-command -v rbenv >/dev/null 2>&1 && eval "$(rbenv init - zsh)"
-
 if command -v antigen >/dev/null 2>&1; then
 ## Antigen ##
 # Load oh-my-zsh via antigen
@@ -92,6 +90,13 @@ else
 fi
 
 export EDITOR=nvim
+
+# Used by .config/lf/lfrc to hand off non-text files to the OS's opener
+if [ -n "$IS_MAC" ]; then
+  export OPENER=open
+elif [ -n "$IS_LINUX" ]; then
+  export OPENER=xdg-open
+fi
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
