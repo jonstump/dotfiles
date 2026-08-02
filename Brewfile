@@ -1,11 +1,5 @@
-tap "acmagn/ratune"
-tap "adembc/tap", "https://github.com/Adembc/homebrew-tap"
-tap "alchemmist/tap"
 tap "buo/cask-upgrade"
 tap "charmbracelet/tap"
-tap "heroku/brew"
-tap "homebrew-zathura/zathura", "https://github.com/homebrew-zathura/homebrew-zathura.git"
-tap "mongodb/brew"
 # GNU internationalization (i18n) and localization (l10n) library
 brew "gettext"
 # OpenType text shaping engine
@@ -39,8 +33,10 @@ brew "automake"
 brew "b2-tools"
 # Terminal bandwidth utilization tool
 brew "bandwhich"
-# Gnome disk usage analyzer
-brew "baobab"
+# Disk usage analyzer (was `brew "baobab"`, a GTK4 GNOME GUI app: it has arm64
+# bottles so it installed, but there is no .app bundle, no Dock or Launchpad
+# presence, and it renders through the GTK quartz backend.)
+brew "ncdu"
 # Bourne-Again SHell, a UNIX command interpreter
 brew "bash"
 # Clone of cat(1) with syntax highlighting and Git integration
@@ -296,35 +292,7 @@ cask "steam"
 cask "reaper"
 # Adobe Creative Cloud desktop app
 cask "adobe-creative-cloud"
-mas "1Blocker", id: 1365531024
-mas "ColorSlurp", id: 1287239339
-mas "Delicious Library 3", id: 635124250
-mas "Disk Cleaner", id: 970246631
-mas "Gapplin", id: 768053424
-mas "GarageBand", id: 682658836
-mas "HexColor", id: 446103121
-mas "iMovie", id: 408981434
-mas "Infuse", id: 1136220934
-mas "Keynote", id: 409183694
-mas "Magnet", id: 441258766
-mas "MeetingBar", id: 1532419400
-mas "Messenger", id: 1480068668
-mas "Moom Classic", id: 419330170
-mas "OneTab", id: 1540160809
-mas "PiPer", id: 1421915518
-mas "Postico", id: 1031280567
-mas "QR Capture", id: 1369524274
-mas "Reeder", id: 1529448980
-mas "SenPlayer", id: 6443975850
-mas "Slack", id: 803453959
-mas "Spark", id: 1176895641
-mas "Supernote Partner", id: 1494992020
-mas "Tailscale", id: 1475387142
-mas "Termius", id: 1176074088
-mas "The Unarchiver", id: 425424353
-mas "WireGuard", id: 1451685025
 cargo "cargo-update"
-cargo "nerdfix"
 npm "@angular/cli"
 npm "@feathersjs/cli"
 npm "corepack"

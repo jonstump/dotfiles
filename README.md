@@ -28,7 +28,16 @@ installer that was just checked out:
 $HOME/install.sh
 ```
 
-- **macOS**: installs Homebrew if it's missing, then `brew bundle --file=Brewfile`.
+- **macOS**: installs Homebrew if it's missing, then `brew bundle --file="$SCRIPT_DIR/Brewfile"`
+  (i.e. the `Brewfile` next to `install.sh`).
+  - Mac App Store apps are **not** included. `mas` can only install titles
+    already associated with the signed-in Apple ID, so on a fresh machine
+    every entry fails. Sign in to the App Store, then run
+    `brew bundle --file=Brewfile.mas` by hand.
+  - `cask "macfuse"` installs a kernel extension. On Apple Silicon that needs
+    a trip through Recovery to enable Reduced Security with *"Allow user
+    management of kernel extensions"*, plus two reboots — the one step here
+    that isn't unattended.
 - **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo on amd64
   (modern `signed-by` keyring in `/etc/apt/keyrings`, not the deprecated
   `apt-key`), installs everything in `apt-packages.txt`, and installs
@@ -117,7 +126,9 @@ reason; add files by name, or use `config add -u` to stage modifications/
 deletions to already-tracked files only.
 
 Updates to installed tools are handled by [`topgrade`](https://github.com/topgrade-rs/topgrade)
-rather than a dotfiles alias — run `topgrade` directly.
+rather than a dotfiles alias — run `topgrade` directly. It comes from the
+Brewfile on macOS; on Linux `install.sh` fetches the upstream release into
+`~/.local/bin`, since it isn't packaged for Debian/Ubuntu.
 
 ## What's here
 
@@ -131,6 +142,7 @@ rather than a dotfiles alias — run `topgrade` directly.
 | `.config/kitty/` | Kitty terminal config, gruvbox colorscheme. |
 | `.config/lf/lfrc` | [lf](https://github.com/gokcehan/lf) file manager config. |
 | `Brewfile` | macOS package manifest (`brew bundle --file=Brewfile`). |
+| `Brewfile.mas` | Mac App Store entries, split out — run by hand after signing in to the App Store. |
 | `apt-packages.txt` | Linux (apt) package manifest — a curated core set, not a full mirror of `Brewfile`; extend as needed per-distro. |
 | `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
 | `bootstrap.sh` | One-time bare-repo checkout for a brand new machine. |
