@@ -56,8 +56,18 @@ install_mac() {
     [ -x "$brew_bin" ] && eval "$("$brew_bin" shellenv)" && break
   done
 
-  brew bundle --file="$HOME/Brewfile"
+  # Config setup first: it's cheap and reliable, and must not be skipped just
+  # because a package install failed. .zshrc execs into tmux on every
+  # interactive shell, so a missing oh-my-tmux clone leaves a fresh Mac in an
+  # unconfigured tmux with no obvious way out.
   install_oh_my_tmux
+
+  # Package installation is the least reliable step here — a single broken or
+  # disabled formula aborts the whole bundle. Don't let that take the rest of
+  # the install down with it.
+  if ! brew bundle --file="$SCRIPT_DIR/Brewfile"; then
+    echo "WARNING: some Brewfile entries failed to install; continuing." >&2
+  fi
 }
 
 # Adds a third-party apt repo with a modern signed-by keyring (not the
