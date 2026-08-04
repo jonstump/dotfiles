@@ -234,6 +234,45 @@ install_topgrade() {
   pipx install topgrade
 }
 
+# zsh is normally in every Debian/Ubuntu archive, but a derivative distro's
+# sources.list can omit the component that carries it (or only ship its own
+# overlay repo) — apt_has_candidate re-checks so this only builds from source
+# when apt genuinely has no candidate, not just a stale index. The upstream
+# release tarball (unlike a raw git checkout) ships a pre-generated
+# ./configure, so this only needs a C compiler and ncurses headers — both
+# already pulled in by apt-packages.txt (build-essential, libncursesw5-dev).
+install_zsh() {
+  command -v zsh >/dev/null 2>&1 && return
+
+  if apt_has_candidate zsh; then
+    echo "Installing zsh (apt)"
+    sudo apt-get install -y zsh
+    return
+  fi
+
+  echo "zsh not found via apt — building from source (upstream release tarball)."
+  local tmp
+  tmp="$(mktemp -d)"
+  if curl -fsSL -o "$tmp/zsh-src.tar" "https://sourceforge.net/projects/zsh/files/latest/download" \
+       && tar -xf "$tmp/zsh-src.tar" -C "$tmp" --strip-components=1; then
+    if (
+         cd "$tmp" &&
+         ./configure --prefix=/usr/local &&
+         make -j"$(nproc)" &&
+         sudo make install
+       ); then
+      if ! grep -qxF /usr/local/bin/zsh /etc/shells 2>/dev/null; then
+        echo /usr/local/bin/zsh | sudo tee -a /etc/shells >/dev/null
+      fi
+    else
+      echo "WARNING: zsh build failed; skipping." >&2
+    fi
+  else
+    echo "WARNING: zsh source download failed; skipping." >&2
+  fi
+  rm -rf "$tmp"
+}
+
 install_mac() {
   if ! command -v brew >/dev/null 2>&1; then
     echo "Installing Homebrew"
@@ -474,6 +513,7 @@ install_apt() {
   install_neovim
   install_lazygit
   install_topgrade
+  install_zsh
   install_nvm
   install_pyenv
   install_oh_my_tmux
