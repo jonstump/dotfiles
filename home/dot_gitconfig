@@ -5,8 +5,9 @@
 #       name = Your Name
 #       email = you@example.com
 #
-# Without that file, `git commit` (and the `config commit` flow in README.md)
-# fails with "Please tell me who you are" on a fresh machine.
+# Without that file, `git commit` fails with "Please tell me who you are" on
+# a fresh machine. chezmoi doesn't manage ~/.gitconfig.local at all — it's
+# untracked on every machine, same as before this repo moved to chezmoi.
 [include]
 	path = ~/.gitconfig.local
 
