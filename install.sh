@@ -344,6 +344,29 @@ add_apt_repo() {
   rm -f "$tmp"
 }
 
+# Signal ships as a Flatpak too (org.signal.Signal), and PikaOS/other distros
+# often have it pre-installed that way. apt-installing signal-desktop on top
+# would just leave two copies of the same app — check for the Flatpak first
+# and leave it alone if so, rather than silently doubling up. amd64-only:
+# Signal only publishes an amd64 apt build, so don't even add the repo on a
+# Pi/Ampere/Asahi/UTM arm64 box.
+install_signal() {
+  [ "$(dpkg --print-architecture)" = "amd64" ] || return 0
+  dpkg -s signal-desktop >/dev/null 2>&1 && return 0
+
+  if command -v flatpak >/dev/null 2>&1 \
+     && flatpak list --app --columns=application 2>/dev/null | grep -qix org.signal.Signal; then
+    echo "Signal is already installed via Flatpak — skipping the apt package."
+    return 0
+  fi
+
+  add_apt_repo signal-desktop \
+    "https://updates.signal.org/desktop/apt/keys.asc" \
+    "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
+  apt_update
+  sudo apt-get install -y signal-desktop
+}
+
 # Reads a package manifest into the global PKGS array, stripping '#' comments,
 # surrounding whitespace and blank lines.
 read_manifest() {
@@ -451,20 +474,11 @@ install_apt() {
   apt_update
   sudo apt-get install -y curl gnupg ca-certificates
 
-  # Signal publishes an amd64 build only, so don't add a repo that can't
-  # resolve on arm64 (a Pi, an Ampere box, an Asahi/UTM VM).
-  if [ "$(dpkg --print-architecture)" = "amd64" ]; then
-    add_apt_repo signal-desktop \
-      "https://updates.signal.org/desktop/apt/keys.asc" \
-      "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
-  fi
-
-  apt_update
-
   apt_install_manifest "$SCRIPT_DIR/apt-packages.txt"
 
   if want_desktop_packages; then
     apt_install_manifest "$SCRIPT_DIR/apt-packages-desktop.txt"
+    install_signal
   else
     echo "No display environment detected — skipping apt-packages-desktop.txt."
     echo "(Set DOTFILES_DESKTOP=1 to install them anyway.)"
