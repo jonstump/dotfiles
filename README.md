@@ -157,6 +157,7 @@ from `home/` itself:
 | `Brewfile.mas` | Mac App Store entries, split out — run by hand after signing in to the App Store. |
 | `apt-packages.txt` | Linux (apt) package manifest — a curated core set, not a full mirror of `Brewfile`; extend as needed per-distro. |
 | `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
+| `apt-flatpak-overrides.txt` | Maps an apt package to a Flatpak application ID; `install.sh` skips apt-installing a package if its mapped Flatpak is already present. Add a line to avoid double-installing an app you manage via Flatpak. |
 | `bootstrap.sh` | One-time chezmoi install + init/apply for a brand new machine. |
 | `install.sh` | OS-detecting package/tool installer, run after `bootstrap.sh`. |
 | `.dots_archive/` | Retired scripts/configs kept for reference only — not part of the active install path. |
