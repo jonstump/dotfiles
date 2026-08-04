@@ -344,19 +344,37 @@ add_apt_repo() {
   rm -f "$tmp"
 }
 
-# Signal ships as a Flatpak too (org.signal.Signal), and PikaOS/other distros
-# often have it pre-installed that way. apt-installing signal-desktop on top
-# would just leave two copies of the same app — check for the Flatpak first
-# and leave it alone if so, rather than silently doubling up. amd64-only:
-# Signal only publishes an amd64 apt build, so don't even add the repo on a
-# Pi/Ampere/Asahi/UTM arm64 box.
+# True if $1 (a Flatpak application ID) is installed.
+flatpak_installed() {
+  command -v flatpak >/dev/null 2>&1 || return 1
+  flatpak list --app --columns=application 2>/dev/null | grep -qix "$1"
+}
+
+# Looks up $1 (an apt package name) in apt-flatpak-overrides.txt and prints
+# the Flatpak application ID it's mapped to. Empty output and non-zero exit
+# if that package has no override entry.
+flatpak_override_for() {
+  local file="$SCRIPT_DIR/apt-flatpak-overrides.txt"
+  [ -f "$file" ] || return 1
+  awk -v pkg="$1" '
+    { sub(/#.*/, ""); gsub(/^[[:space:]]+|[[:space:]]+$/, "") }
+    NF == 2 && $1 == pkg { print $2; found = 1; exit }
+    END { exit !found }
+  ' "$file"
+}
+
+# Signal needs its own apt repo before it can be installed at all, so it can't
+# go through apt_install_manifest's generic Flatpak-override check below like
+# an ordinary package — it has to decide whether it's needed before deciding
+# whether to add that repo. amd64-only: Signal only publishes an amd64 apt
+# build, so don't even add the repo on a Pi/Ampere/Asahi/UTM arm64 box.
 install_signal() {
   [ "$(dpkg --print-architecture)" = "amd64" ] || return 0
   dpkg -s signal-desktop >/dev/null 2>&1 && return 0
 
-  if command -v flatpak >/dev/null 2>&1 \
-     && flatpak list --app --columns=application 2>/dev/null | grep -qix org.signal.Signal; then
-    echo "Signal is already installed via Flatpak — skipping the apt package."
+  local flatpak_id
+  if flatpak_id="$(flatpak_override_for signal-desktop)" && flatpak_installed "$flatpak_id"; then
+    echo "Skipping signal-desktop — already installed via Flatpak ($flatpak_id)."
     return 0
   fi
 
@@ -402,9 +420,19 @@ apt_install_manifest() {
   read_manifest "$file"
   [ "${#PKGS[@]}" -gt 0 ] || return 0
 
+  local pkg flatpak_id filtered=()
+  for pkg in "${PKGS[@]}"; do
+    if flatpak_id="$(flatpak_override_for "$pkg")" && flatpak_installed "$flatpak_id"; then
+      echo "Skipping $pkg — already installed via Flatpak ($flatpak_id)."
+      continue
+    fi
+    filtered+=("$pkg")
+  done
+  PKGS=("${filtered[@]}")
+  [ "${#PKGS[@]}" -gt 0 ] || return 0
+
   if ! sudo apt-get install -y "${PKGS[@]}"; then
     echo "Batch install of $(basename "$file") failed; retrying package-by-package." >&2
-    local pkg
     for pkg in "${PKGS[@]}"; do
       sudo apt-get install -y "$pkg" || echo "SKIP (unavailable): $pkg" >&2
     done

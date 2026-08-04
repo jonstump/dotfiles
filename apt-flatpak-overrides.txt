@@ -1,0 +1,13 @@
+# Maps an apt package to the Flatpak application ID that provides the same
+# app. install.sh checks this before installing each package in
+# apt-packages.txt / apt-packages-desktop.txt (and before installing Signal,
+# which needs its own apt repo — see install_signal() in install.sh): if the
+# mapped Flatpak is already installed, the apt package is skipped instead of
+# putting a redundant second copy of the same app on the machine.
+#
+# One override per line: "<apt-package> <flatpak-application-id>". '#'
+# comments and blank lines are ignored. To add one, install the app as a
+# Flatpak, find its ID with `flatpak list --app`, and add a line here — no
+# script changes needed.
+
+signal-desktop org.signal.Signal
