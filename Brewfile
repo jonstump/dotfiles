@@ -27,7 +27,7 @@ brew "ansible"
 # 2026-11-22, and one hard error aborts the entire bundle). The plugin stack
 # now runs on antidote instead — see .zsh_plugins.txt. antidote is deliberately
 # NOT a brew entry: it's pure zsh, and .zshrc/install.sh clone it so that one
-# mechanism covers macOS, apt and Nix alike.
+# mechanism covers macOS and apt alike.
 # Codec library for encoding and decoding AV1 video streams
 brew "aom"
 # Tool for generating GNU Standards-compliant Makefiles

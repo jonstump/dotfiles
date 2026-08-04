@@ -27,9 +27,8 @@ ohmyzsh/ohmyzsh path:plugins/z
 
 # Guess what to install when running an unknown command. Works across
 # platforms: the plugin sources Homebrew's own handler.sh on macOS (it lives in
-# core brew now, no tap needed), /usr/lib/command-not-found on Debian/Ubuntu
-# via the `command-not-found` package in apt-packages.txt, and
-# /run/current-system/sw/bin/command-not-found on Nix hosts.
+# core brew now, no tap needed), and /usr/lib/command-not-found on Debian/Ubuntu
+# via the `command-not-found` package in apt-packages.txt.
 ohmyzsh/ohmyzsh path:plugins/command-not-found
 
 # add color to man pages

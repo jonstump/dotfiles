@@ -73,14 +73,8 @@ $(chezmoi source-path)/../install.sh
   - GUI apps live in `apt-packages-desktop.txt` and are only installed when a
     display environment is detected. Force it either way with
     `DOTFILES_DESKTOP=1` / `DOTFILES_DESKTOP=0`.
-  - Your login shell is switched to zsh only if a zsh outside the Nix store is
-    listed in `/etc/shells`; otherwise it says so and moves on.
-- **nix-darwin / Nix on any other Linux host**: skips package installation
-  entirely — packages for those machines are declared in a separate
-  flake/home-manager repo, not here. Only sets up the non-package pieces
-  (`oh-my-tmux`, and `antidote` unless the flake already provides it). On
-  nix-darwin the Brewfile is *not* applied automatically;
-  run `brew bundle --file=Brewfile` by hand if you also want the casks.
+  - Your login shell is switched to zsh only if it's listed in `/etc/shells`;
+    otherwise it says so and moves on.
 
 `install.sh` is safe to re-run; every step checks whether its target already
 exists before doing anything.
@@ -99,35 +93,6 @@ of the source state, so `chezmoi apply`/`chezmoi diff` never touch them:
 
 `~/.gitconfig.local` is the one you need on a fresh box: without it,
 `git commit` fails with *"Please tell me who you are"*.
-
-### Sharing a machine with Nix
-
-The rule is **one writer per path**:
-
-| Concern | Owner |
-|---|---|
-| `~/.zshrc`, `~/.zprofile`, `~/.zsh_aliases`, `~/.config/{nvim,tmux,kitty,lf}` | **This repo**, on all three platforms |
-| Package sets (`Brewfile`, `apt-packages.txt`, `home.packages`) | Per-platform: this repo for mac/apt, the flake repo for nix |
-| System config (login shell, fonts, services) | Platform-native (`users.users.<you>.shell` in the flake, `chsh` on apt) |
-
-So in the flake repo, deliberately **don't** set `programs.zsh.enable = true`
-— install zsh and its plugins as packages and let this repo's `.zshrc` stay
-authoritative. Both systems writing `~/.zshrc` collides in both directions:
-`home-manager switch` refuses to activate over a file it doesn't already own
-(or with `-b backup` quietly renames it, so `chezmoi diff` reports it
-changed on the next run), while `chezmoi apply` will happily replace HM's
-read-only store symlink with a regular file that the next switch then
-reverts.
-
-When home-manager needs to inject something into the shell, have it write a
-separate file instead. `.zshrc` sources this near the end if it exists:
-
-```sh
-~/.config/zsh/nix-env.zsh
-```
-
-That keeps the seam explicit rather than having two systems fight over one
-file.
 
 ## Day-to-day usage
 
