@@ -126,8 +126,8 @@ if [ -n "$_antidote" ]; then
   source "$_antidote"
 
   # Second argument is the generated static file. Without it antidote writes
-  # ~/.zsh_plugins.zsh next to the bundle file — and $HOME is this repo's work
-  # tree, so that's a generated file sitting in `config status` forever.
+  # ~/.zsh_plugins.zsh next to the bundle file, cluttering $HOME with a
+  # generated file instead of keeping it under the cache dir.
   antidote load "$HOME/.zsh_plugins.txt" \
     "${XDG_CACHE_HOME:-$HOME/.cache}/antidote/zsh_plugins.zsh"
 fi
@@ -139,9 +139,6 @@ elif [ -n "$_antidote" ]; then
     "${XDG_CACHE_HOME:-$HOME/.cache}/antidote/zsh_plugins.p10k.zsh"
 fi
 unset _p10k_theme _antidote
-
-#Custom Variables
-DOTFILES="$HOME/Repos/dotfiles"
 
 # Preferred editor. (There was an SSH_CONNECTION branch above this picking
 # nvim vs vim, but an unconditional `export EDITOR=nvim` directly beneath it

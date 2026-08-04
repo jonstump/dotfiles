@@ -18,9 +18,8 @@ alias icat="kitty +kitten icat"
 alias v="nvim"
 alias npmreinstall='rm -rf node_modules/ && npm install'
 
-# `command git` bypasses the git aliases above without hardcoding a path —
-# /usr/bin/git doesn't exist on NixOS, and on macOS it's only the Xcode CLT shim.
-alias config='command git --git-dir=$DOTFILES/ --work-tree=$HOME'
+# Shorthand for day-to-day dotfiles work — see README.md.
+alias dotfiles='chezmoi'
 
 alias dcr="docker compose run"
 alias dcd="docker compose down"
