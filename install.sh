@@ -16,7 +16,8 @@ set -euo pipefail
 
 # Everything here is resolved relative to the script itself. This file lives
 # outside chezmoi's source root (see .chezmoiroot), next to the Brewfile and
-# package manifests, in the chezmoi source directory (`chezmoi source-path`).
+# package manifests, at the repo root — one level above `chezmoi source-path`,
+# which .chezmoiroot points at the home/ subdirectory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 detect_os() {

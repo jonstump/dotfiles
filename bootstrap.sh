@@ -6,7 +6,7 @@
 # Makes sure git exists (Xcode Command Line Tools on macOS, the distro package
 # on Linux), installs chezmoi itself, then has chezmoi clone this repo as its
 # source directory and apply it on top of $HOME.
-# After this finishes, open a new shell and run: $(chezmoi source-path)/install.sh
+# After this finishes, open a new shell and run: $(chezmoi source-path)/../install.sh
 set -euo pipefail
 
 DOTFILES_REPO="jonstump/dotfiles"
@@ -110,4 +110,4 @@ chezmoi apply
 
 echo
 echo "Dotfiles applied to \$HOME. Open a new shell, then run:"
-echo "  \$(chezmoi source-path)/install.sh"
+echo "  \$(chezmoi source-path)/../install.sh"
