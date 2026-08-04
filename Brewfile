@@ -1,5 +1,10 @@
 tap "buo/cask-upgrade"
 tap "charmbracelet/tap"
+
+# Adopt casks whose app is already on disk but wasn't installed by Homebrew
+# (e.g. dragged into /Applications by hand) instead of erroring out and
+# aborting the whole bundle.
+cask_args adopt: true
 # GNU internationalization (i18n) and localization (l10n) library
 brew "gettext"
 # OpenType text shaping engine
@@ -213,8 +218,6 @@ cask "android-platform-tools"
 cask "calibre"
 # Anthropic's official Claude AI desktop app
 cask "claude"
-# Ghostty-based terminal with vertical tabs and notifications for AI coding agents
-cask "cmux"
 # Write, edit, and chat about your code with AI
 cask "cursor"
 # VPN client
@@ -225,11 +228,7 @@ cask "dash"
 cask "discord"
 # Web browser
 cask "firefox"
-# Web browser
-cask "firefox@developer-edition"
 cask "font-mononoki-nerd-font"
-# Terminal emulator that uses platform-native UI and GPU acceleration
-cask "ghostty"
 # Desktop client for GitHub repositories
 cask "github"
 # Web browser
@@ -268,32 +267,14 @@ cask "setapp"
 cask "signal"
 # Customise mouse buttons, wheels and cursor speed
 cask "steermouse"
-# Terminal emulator, SSH and serial client
-cask "tabby"
 # Customizable email client
 cask "thunderbird"
 # Open-source BitTorrent client
 cask "transmission"
 # Custom Discord App
 cask "vesktop"
-# Web browser with built-in email client focusing on customization and control
-cask "vivaldi"
-# GPU-accelerated cross-platform terminal emulator and multiplexer
-cask "wezterm"
-# Gecko based web browser
-cask "zen"
 # Video communication and virtual meeting platform
 cask "zoom"
-# Audio editor and recorder
-cask "audacity"
-# iZotope product installer/updater
-cask "izotope-product-portal"
-# Digital game distribution client
-cask "steam"
-# Digital audio workstation
-cask "reaper"
-# Adobe Creative Cloud desktop app
-cask "adobe-creative-cloud"
 cargo "cargo-update"
 npm "@angular/cli"
 npm "@feathersjs/cli"
