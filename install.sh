@@ -415,6 +415,8 @@ add_apt_repo() {
     echo "$repo_line" | sudo tee "$list_file" >/dev/null
   else
     echo "WARNING: could not fetch the $name signing key; skipping that repo." >&2
+    rm -f "$tmp"
+    return 1
   fi
   rm -f "$tmp"
 }
@@ -453,11 +455,15 @@ install_signal() {
     return 0
   fi
 
-  add_apt_repo signal-desktop \
+  if add_apt_repo signal-desktop \
     "https://updates.signal.org/desktop/apt/keys.asc" \
-    "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
-  apt_update
-  sudo apt-get install -y signal-desktop
+    "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"; then
+    apt_update
+    sudo apt-get install -y signal-desktop || \
+      echo "WARNING: signal-desktop install failed; continuing with the rest of the setup." >&2
+  else
+    echo "WARNING: skipping signal-desktop (no apt repo added)." >&2
+  fi
 }
 
 # Reads a package manifest into the global PKGS array, stripping '#' comments,
