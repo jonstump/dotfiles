@@ -330,11 +330,28 @@ install_mac() {
   # that didn't exist.
   mkdir -p "$HOME/.nvm"
 
-  # Package installation is the least reliable step here — a single broken or
-  # disabled formula aborts the whole bundle. Don't let that take the rest of
-  # the install down with it.
-  if ! brew bundle --file="$SCRIPT_DIR/Brewfile"; then
-    echo "WARNING: some Brewfile entries failed to install; continuing." >&2
+  # brew bundle install defaults to upgrading every already-installed
+  # dependency too, and `brew` auto-runs `brew update` (a full core/cask tap
+  # fetch) before that — on a machine that's already set up, that's minutes
+  # of upgrade churn for packages that don't need to change, with progress
+  # output that doesn't render cleanly in every terminal. Skip both: only
+  # install what's actually missing, and leave upgrades to `topgrade` (see
+  # README) run by hand.
+  export HOMEBREW_NO_AUTO_UPDATE=1
+
+  local brewfile="$SCRIPT_DIR/Brewfile"
+  if brew bundle check --no-upgrade --file="$brewfile" >/dev/null 2>&1; then
+    echo "Brewfile dependencies already installed; nothing to do."
+  else
+    echo "Missing Brewfile dependencies:"
+    brew bundle check --no-upgrade --verbose --file="$brewfile" || true
+
+    # Package installation is the least reliable step here — a single broken
+    # or disabled formula aborts the whole bundle. Don't let that take the
+    # rest of the install down with it.
+    if ! brew bundle install --no-upgrade --file="$brewfile"; then
+      echo "WARNING: some Brewfile entries failed to install; continuing." >&2
+    fi
   fi
 }
 
