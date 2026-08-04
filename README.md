@@ -1,7 +1,7 @@
 # dotfiles
 
-Personal dotfiles for macOS, Debian/Ubuntu-family Linux (PikaOS, etc.), and
-NixOS. Managed with [chezmoi](https://www.chezmoi.io/): this repo is
+Personal dotfiles for macOS and Debian/Ubuntu-family Linux (PikaOS, etc.).
+Managed with [chezmoi](https://www.chezmoi.io/): this repo is
 chezmoi's *source* directory, applied on top of `$HOME` rather than
 symlinked or checked out directly onto it.
 
@@ -30,9 +30,9 @@ missing (chezmoi day-to-day usage below wants a real git, even though chezmoi
 can clone without one). On macOS that means kicking off the Xcode Command
 Line Tools install (git ships with them); accept the dialog, let it finish,
 then re-run the same command. On Linux it installs git via
-`apt-get`/`dnf`/`pacman`/`zypper`. On NixOS, run it inside `nix-shell -p git`.
+`apt-get`/`dnf`/`pacman`/`zypper`.
 chezmoi itself is installed via its official install script into
-`~/.local/bin`, on all three platforms — no brew/apt package needed.
+`~/.local/bin`, on both platforms — no brew/apt package needed.
 
 **2. Install tooling** — open a new shell, then run the OS-detecting
 installer that was just applied:
@@ -64,7 +64,7 @@ $(chezmoi source-path)/install.sh
     `DOTFILES_DESKTOP=1` / `DOTFILES_DESKTOP=0`.
   - Your login shell is switched to zsh only if a zsh outside the Nix store is
     listed in `/etc/shells`; otherwise it says so and moves on.
-- **NixOS / nix-darwin / Nix on any other host**: skips package installation
+- **nix-darwin / Nix on any other Linux host**: skips package installation
   entirely — packages for those machines are declared in a separate
   flake/home-manager repo, not here. Only sets up the non-package pieces
   (`oh-my-tmux`, and `antidote` unless the flake already provides it). On
@@ -159,7 +159,7 @@ in `home/` (e.g. `~/.zshrc` is `home/executable_dot_zshrc`).
 
 | Target path | Purpose |
 |---|---|
-| `.zshrc`, `.zprofile`, `.zsh_aliases` | Shell config. OS-detected (`IS_MAC`/`IS_LINUX`) where Mac and Linux paths diverge — Homebrew-only lines are guarded so they're inert on Linux/NixOS, and use `$HOMEBREW_PREFIX` rather than assuming Apple Silicon. |
+| `.zshrc`, `.zprofile`, `.zsh_aliases` | Shell config. OS-detected (`IS_MAC`/`IS_LINUX`) where Mac and Linux paths diverge — Homebrew-only lines are guarded so they're inert on Linux, and use `$HOMEBREW_PREFIX` rather than assuming Apple Silicon. |
 | `.gitconfig` | Wires up `git-delta` as the pager and includes `~/.gitconfig.local` for identity. |
 | `.config/nvim/` | [LazyVim](https://www.lazyvim.org/) — the starter template plus a `gruvbox` colorscheme override in `lua/plugins/colorscheme.lua`. |
 | `.config/tmux/tmux.conf` | Points at [oh-my-tmux](https://github.com/gpakosz/.tmux) via `source-file ~/.local/share/tmux/oh-my-tmux/.tmux.conf` (cloned there by `install.sh`). |

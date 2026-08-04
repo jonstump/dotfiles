@@ -6,9 +6,9 @@
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
 #   plus upstream installers for the handful of tools apt doesn't reliably
 #   package (pyenv, nvm, topgrade, oh-my-tmux, antidote).
-# NixOS: packages are declared in a separate flake/home-manager repo, not
-#   here — this only sets up the non-package config pieces (oh-my-tmux,
-#   antidote).
+# Nix (any Linux host): packages are declared in a separate flake/home-manager
+#   repo, not here — this only sets up the non-package config pieces
+#   (oh-my-tmux, antidote).
 set -euo pipefail
 
 # Everything here is resolved relative to the script itself. This file lives
@@ -17,15 +17,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 detect_os() {
-  # /etc/NIXOS is the canonical marker. The os-release fallback sources the
-  # file rather than grepping it: the spec permits `ID="nixos"`, and an
-  # unanchored grep would also match `ID=nixos-something`.
-  if [ -e /etc/NIXOS ] || \
-     { [ -r /etc/os-release ] && [ "$( . /etc/os-release; printf '%s' "${ID:-}" )" = nixos ]; }; then
-    echo "nixos"
-    return
-  fi
-
   if [ "$(uname -s)" = "Darwin" ]; then
     # nix-darwin looks exactly like plain macOS to `uname`, so it used to fall
     # into install_mac — installing Homebrew and running the whole Brewfile,
@@ -439,13 +430,6 @@ install_apt() {
   set_login_shell
 }
 
-install_nixos() {
-  echo "NixOS detected: packages are managed by your flake/home-manager repo," \
-       "not this one. Only setting up non-package config here."
-  install_oh_my_tmux
-  install_antidote
-}
-
 install_nix_darwin() {
   echo "nix-darwin detected: packages are managed by your flake, so the" \
        "Brewfile is not applied automatically."
@@ -457,7 +441,7 @@ install_nix_darwin() {
 }
 
 install_nix() {
-  echo "Nix detected on a non-NixOS host: packages come from your flake repo," \
+  echo "Nix detected: packages come from your flake repo," \
        "not this one. Only setting up non-package config here."
   install_oh_my_tmux
   install_antidote
@@ -466,7 +450,6 @@ install_nix() {
 case "$(detect_os)" in
   mac)        install_mac ;;
   apt)        install_apt ;;
-  nixos)      install_nixos ;;
   nix-darwin) install_nix_darwin ;;
   nix)        install_nix ;;
   *)
