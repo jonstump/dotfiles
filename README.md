@@ -38,7 +38,7 @@ chezmoi itself is installed via its official install script into
 installer that was just applied:
 
 ```sh
-$(chezmoi source-path)/install.sh
+$(chezmoi source-path)/../install.sh
 ```
 
 - **macOS**: installs Homebrew if it's missing, then `brew bundle --file="$SCRIPT_DIR/Brewfile"`
@@ -170,8 +170,9 @@ in `home/` (e.g. `~/.zshrc` is `home/executable_dot_zshrc`).
 | `.zsh_plugins.p10k.txt` | Fallback powerlevel10k, used only where no native package provides it (i.e. Debian/Ubuntu). |
 
 The rest of the repo lives outside `home/` (see `.chezmoiroot`), so chezmoi
-never deploys it into `$HOME` — these are read from wherever chezmoi cloned
-this repo (`chezmoi source-path`), not from `home/`:
+never deploys it into `$HOME` — these are read from the repo root, one level
+above `chezmoi source-path` (which `.chezmoiroot` points at `home/`), not
+from `home/` itself:
 
 | Path | Purpose |
 |---|---|
