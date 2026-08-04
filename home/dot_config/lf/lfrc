@@ -13,9 +13,14 @@ set icons true
 # silently did nothing — which defeats the point of `export OPENER=open` in
 # .zshrc. macOS's `open` detaches on its own, so setsid isn't needed there.
 # (Loop variable renamed so it stops shadowing lf's own $f.)
+# `file` is from the `file` package, listed as a dependency in
+# apt-packages.txt, but not guaranteed on minimal installs. Swallow its
+# stderr so a missing `file` degrades predictably: everything falls into
+# the `*)` opener branch instead of printing an error and doing weird
+# things on every open.
 cmd open ${{
     test -L $f && f=$(readlink -f $f)
-    case $(file --mime-type $f -b) in
+    case $(file --mime-type "$f" -b 2>/dev/null) in
         text/*) $EDITOR $fx;;
         *)  for target in $fx; do
                 if command -v setsid >/dev/null 2>&1; then

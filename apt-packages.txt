@@ -54,6 +54,9 @@ nmap
 syncthing
 wireguard-tools
 ansible
+# file — `file --mime-type` in .config/lf/lfrc; often pulled in
+# transitively, not guaranteed on minimal installs (issue #60).
+file
 
 # Languages / toolchains (base interpreters only — pyenv manages versions)
 python3
