@@ -354,6 +354,20 @@ read_manifest() {
   done < <(sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' "$1")
 }
 
+# A single third-party repo with stale/desyncing mirrors (seen in practice:
+# PikaOS's own PPA returning a Release file whose recorded hash for its dep11
+# AppStream Components file doesn't match what's currently being served) makes
+# `apt-get update` exit non-zero even though the actual package indices came
+# through fine and apt itself calls the failure non-fatal ("ignored, or old
+# ones used instead"). Don't let `set -e` turn that into a hard stop for the
+# whole installer.
+apt_update() {
+  if ! sudo apt-get update; then
+    echo "WARNING: apt-get update reported errors (see above); continuing with" >&2
+    echo "whatever indices it did fetch or already had cached." >&2
+  fi
+}
+
 # apt is all-or-nothing: one unresolvable name means nothing gets installed,
 # and `set -e` would then kill the rest of the installer. The manifests are
 # explicitly best-effort (names vary by distro/release), so try the fast batch
@@ -434,7 +448,7 @@ install_apt() {
 
   # add_apt_repo needs curl and gpg, and neither is guaranteed on a minimal
   # Debian image — bootstrap them before adding any repo.
-  sudo apt-get update
+  apt_update
   sudo apt-get install -y curl gnupg ca-certificates
 
   # Signal publishes an amd64 build only, so don't add a repo that can't
@@ -445,7 +459,7 @@ install_apt() {
       "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"
   fi
 
-  sudo apt-get update
+  apt_update
 
   apt_install_manifest "$SCRIPT_DIR/apt-packages.txt"
 
