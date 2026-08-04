@@ -5,7 +5,10 @@
 # Mac: Homebrew + Brewfile.
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
 #   plus upstream installers for the handful of tools apt doesn't reliably
-#   package (pyenv, nvm, topgrade, oh-my-tmux, antidote).
+#   package (pyenv, nvm, oh-my-tmux, antidote — always upstream, since the
+#   dotfiles that load them only look in fixed non-apt locations — and
+#   lazygit/topgrade, which check apt first and only fall back to upstream if
+#   this distro/release doesn't package them).
 # Nix (any Linux host): packages are declared in a separate flake/home-manager
 #   repo, not here — this only sets up the non-package config pieces
 #   (oh-my-tmux, antidote).
@@ -48,9 +51,27 @@ install_oh_my_tmux() {
   fi
 }
 
+# True if apt has an installable candidate for $1 on this machine. Package
+# sets vary by distro and drift over time even on one distro (e.g. lazygit
+# landed in Debian testing after this script first needed the upstream
+# fallback below), and this repo's apt path isn't limited to one distro's
+# archive — so check apt at run time instead of hardcoding "not packaged" and
+# letting that guess go stale or wrong. Also safe to call from the
+# mac/nix-darwin/nix paths, where apt-cache doesn't exist at all.
+apt_has_candidate() {
+  command -v apt-cache >/dev/null 2>&1 || return 1
+  local candidate
+  candidate="$(apt-cache policy "$1" 2>/dev/null | awk -F': ' '/Candidate:/{print $2; exit}')"
+  [ -n "$candidate" ] && [ "$candidate" != "(none)" ]
+}
+
 # zsh plugin manager, replacing antigen (#26). Cloned rather than installed as
 # a package because it's pure zsh and apt has no version of it across the
 # releases this repo targets, so one mechanism covers all three platforms.
+# Not apt_has_candidate-checked like lazygit/topgrade below: .zshrc discovers
+# antidote by checking a fixed list of paths (nix, Homebrew, or this clone at
+# ~/.antidote), not via `command -v`, so an apt package landing anywhere else
+# would silently go unused instead of being picked up.
 # .zshrc clones it too if it's missing; doing it here keeps the first shell
 # after install.sh from paying for it.
 install_antidote() {
@@ -76,6 +97,9 @@ install_antidote() {
   fi
 }
 
+# Not apt_has_candidate-checked: .zshrc only sources nvm from $HOME/.nvm/nvm.sh
+# (or the Homebrew formula's path on Mac), never from `command -v nvm`, so an
+# apt package wouldn't land where .zshrc looks and would silently go unused.
 install_nvm() {
   if [ ! -d "$HOME/.nvm" ]; then
     echo "Installing nvm"
@@ -137,10 +161,16 @@ github_latest_version() {
     | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
 }
 
-# LazyVim's health check looks for lazygit, which has no candidate in the
-# Debian/Ubuntu archive.
+# LazyVim's health check looks for lazygit. Not in the Debian/Ubuntu archive
+# as of writing, but apt_has_candidate re-checks in case that has changed.
 install_lazygit() {
   command -v lazygit >/dev/null 2>&1 && return
+
+  if apt_has_candidate lazygit; then
+    echo "Installing lazygit (apt)"
+    sudo apt-get install -y lazygit
+    return
+  fi
 
   local machine target
   machine="$(uname -m)"
@@ -173,6 +203,10 @@ install_lazygit() {
   rm -rf "$tmp"
 }
 
+# Not apt_has_candidate-checked: .zprofile hardcodes PYENV_ROOT to
+# $HOME/.pyenv and only puts $PYENV_ROOT/bin on PATH, so an apt-installed
+# pyenv landing in a system location wouldn't be found there and pyenv init
+# would silently stay dead.
 install_pyenv() {
   if [ ! -d "$HOME/.pyenv" ]; then
     echo "Installing pyenv"
@@ -181,15 +215,22 @@ install_pyenv() {
 }
 
 # README.md points at topgrade for updates and apt-packages.txt claims
-# install.sh installs it — but nothing did, and it isn't packaged for
-# Debian/Ubuntu. (macOS was always fine; it's in the Brewfile.)
-# topgrade-rs publishes to PyPI, and pipx is already in apt-packages.txt, so
-# this is simpler than fetching and unpacking the release tarball per-arch.
+# install.sh installs it — but nothing did, and as of writing it isn't
+# packaged for Debian/Ubuntu (macOS was always fine; it's in the Brewfile), so
+# check apt first and fall back to pipx. topgrade-rs publishes to PyPI, and
+# pipx is already in apt-packages.txt, so that's simpler than fetching and
+# unpacking the release tarball per-arch.
 install_topgrade() {
-  if ! command -v topgrade >/dev/null 2>&1; then
-    echo "Installing topgrade"
-    pipx install topgrade
+  command -v topgrade >/dev/null 2>&1 && return
+
+  if apt_has_candidate topgrade; then
+    echo "Installing topgrade (apt)"
+    sudo apt-get install -y topgrade
+    return
   fi
+
+  echo "Installing topgrade (pipx)"
+  pipx install topgrade
 }
 
 install_mac() {
