@@ -1,9 +1,7 @@
 # AGENTS.md
 
 Dotfiles repo managed by [chezmoi](https://www.chezmoi.io/). The source of truth
-is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets. A
-separate flake/home-manager repo (references to which appear in comments) owns
-Nix-specific pieces; this repo owns the shell/tool configs themselves.
+is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 
 ## Chezmoi file-naming
 
@@ -27,13 +25,8 @@ Nix-specific pieces; this repo owns the shell/tool configs themselves.
      unconditional sourcing double-runs `pyenv init` and `thefuck --alias`.
   2. `~/.zsh_aliases` (after `IS_MAC`/`IS_LINUX` are set, so aliases can guard
      per-OS).
-  3. Nix profile / home-manager session vars, with careful `__ETC_PROFILE_NIX_SOURCED`
-     unset games (the installer also writes the snippet to `/etc/zshrc`, so the
-     guard is always already set).
-  4. NVM, powerlevel10k, then antidote plugin loading (bundle lists below).
-  5. `~/.config/zsh/nix-env.zsh` — written by the external flake/home-manager
-     repo; this is the deliberate seam so one system writes each path.
-  6. `~/.zshrc.local` — untracked, machine-specific.
+  3. NVM, powerlevel10k, then antidote plugin loading (bundle lists below).
+  4. `~/.zshrc.local` — untracked, machine-specific.
   7. **Last thing in the file**: auto-attach to tmux session `main`
      (`tmux new-session -A -s main && exit`). This must stay last: `exec`
      replaces the process, and that process forks the tmux *server*, so anything
@@ -52,16 +45,16 @@ Nix-specific pieces; this repo owns the shell/tool configs themselves.
 
 - Plugin list: `dot_zsh_plugins.txt` (loads via `antidote load`), theme is
   deliberately **not** there — see `dot_zsh_plugins.p10k.txt`, a fallback loaded
-  only when no natively packaged powerlevel10k is found (Nix patched copy first,
-  then Homebrew, then Debian/Ubuntu falls back to this file).
+  only when no natively packaged powerlevel10k is found (Homebrew first, then
+  Debian/Ubuntu falls back to this file).
 - Edits to the bundles file regenerate the static cache on the next new shell;
   use `antidote update` to update plugins (OMZ's own updater is disabled via
   `zstyle ':omz:update' mode disabled`).
 - `use-omz` (deferred compinit) must come first; syntax-highlighting and
   autosuggestions must stay last in that order (documented in the file).
-- antidote itself: prefer packaged copies at known paths (`/run/current-system/sw`,
-  `~/.nix-profile`, Homebrew prefix), self-heal by git-clone to `~/.antidote` if
-  none found (works before `install.sh` has run on a fresh bootstrap).
+- antidote itself: prefer a packaged copy (Homebrew prefix), self-heal by
+  git-clone to `~/.antidote` if none found (works before `install.sh` has run
+  on a fresh bootstrap).
 
 ## tmux
 
@@ -129,9 +122,9 @@ Nix-specific pieces; this repo owns the shell/tool configs themselves.
 - **Heavily commented**: the shell files read like design docs (many comments
   explain *why* a previous bug happened and *why* the fix is the way it is).
   Preserve this style; the comments are load-bearing context for the next agent.
-- All `uname`/PATH guards exist because the same repo must work on macOS, Nix
-  (via the flake repo), and Debian/Ubuntu (apt `bat`→`batcat`, `fd`→`fdfind`).
-  Any new install step must handle all three.
+- All `uname`/PATH guards exist because the same repo must work on macOS and
+  Debian/Ubuntu (apt `bat`→`batcat`, `fd`→`fdfind`). Any new install step must
+  handle both.
 - `$HOME/.local/bin` is on PATH in `.zshrc` and used by Debian symlink fixes and
   custom helpers (e.g. `lazy-tmux`).
 - Style: 2-space indentation and 120-col line length in Lua (stylua); shell files
