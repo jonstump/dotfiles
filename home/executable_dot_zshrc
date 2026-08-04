@@ -27,10 +27,8 @@ source "$HOME/.zsh_aliases"
 # always set by the time we get here, and this block did nothing at all until
 # the guard was cleared first.
 #
-# Not needed on NixOS: there PATH/NIX_PROFILES come from /etc/set-environment
-# via environment.profiles, not from this file (which the standalone installers
-# create). Skipped inside nix-shell/nix develop so it can't stomp on that PATH.
-if [ ! -e /etc/NIXOS ] && [ -z "${IN_NIX_SHELL:-}" ]; then
+# Skipped inside nix-shell/nix develop so it can't stomp on that PATH.
+if [ -z "${IN_NIX_SHELL:-}" ]; then
   for _nix_sh in \
     /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh \
     "$HOME/.nix-profile/etc/profile.d/nix.sh"
@@ -63,9 +61,9 @@ elif [ -n "$IS_MAC" ] && [ -s "${HOMEBREW_PREFIX:-}/opt/nvm/nvm.sh" ]; then
 fi
 
 # powerlevel10k. The upstream theme ships a prebuilt gitstatusd that's
-# dynamically linked against /lib64/ld-linux-x86-64.so.2 — which NixOS doesn't
-# have, so it fails to exec and p10k silently falls back to a much slower
-# pure-zsh git backend. nixpkgs patches the theme to point at
+# dynamically linked against /lib64/ld-linux-x86-64.so.2 — which some Nix
+# hosts don't have, so it fails to exec and p10k silently falls back to a much
+# slower pure-zsh git backend. nixpkgs patches the theme to point at
 # ${gitstatus}/bin/gitstatusd, so prefer that copy when the flake/home-manager
 # repo has installed it. Homebrew's formula is next; on Debian/Ubuntu, where
 # p10k isn't reliably packaged, nothing matches and antidote loads it from

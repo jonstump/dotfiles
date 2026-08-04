@@ -4,10 +4,11 @@
 # Split out of .zsh_plugins.txt because the choice is per-machine and antidote
 # bundle files are static:
 #
-#   - NixOS / nix-darwin: the flake repo's zsh-powerlevel10k must win. Upstream
-#     ships a prebuilt gitstatusd linked against /lib64/ld-linux-x86-64.so.2,
-#     which doesn't exist there, so it fails to exec and p10k silently falls
-#     back to a much slower pure-zsh git backend. nixpkgs patches it.
+#   - nix-darwin / Nix on Linux: the flake repo's zsh-powerlevel10k must win.
+#     Upstream ships a prebuilt gitstatusd linked against
+#     /lib64/ld-linux-x86-64.so.2, which doesn't exist on some Nix hosts, so it
+#     fails to exec and p10k silently falls back to a much slower pure-zsh git
+#     backend. nixpkgs patches it.
 #   - macOS: `brew "powerlevel10k"` in the Brewfile, so brew keeps it updated
 #     along with everything else.
 #   - Debian/Ubuntu: not reliably packaged, so this file is what actually gets
