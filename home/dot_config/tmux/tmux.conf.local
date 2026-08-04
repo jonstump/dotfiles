@@ -388,6 +388,13 @@ tmux_conf_urlscan_options="--compact --dedupe"
 # start with mouse mode enabled
 set -g mouse on
 
+# force status bar position explicitly: neither oh-my-tmux nor tmux-powerkit
+# set this, so without an explicit value tmux falls back to its own default
+# (bottom) unless some untracked local/system config (e.g. a leftover
+# ~/.tmux.conf or a Homebrew-provided tmux.conf) overrides it, which is what
+# was happening on macOS while Linux showed the tmux default.
+set -g status-position bottom
+
 # force Vi mode
 #   really you should export VISUAL or EDITOR environment variable, see manual
 #set -g status-keys vi
