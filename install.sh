@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs tooling for whichever OS this is running on. Assumes the dotfiles
-# are already checked out on top of $HOME (run bootstrap.sh first if not).
+# have already been applied by chezmoi (run bootstrap.sh first if not).
 #
 # Mac: Homebrew + Brewfile.
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
@@ -11,9 +11,9 @@
 #   antidote).
 set -euo pipefail
 
-# Everything here is resolved relative to the script itself. (There used to be
-# a DOTFILES_DIR pointing at the bare repo, but nothing referenced it —
-# install.sh doesn't need to know about the bare-repo layout.)
+# Everything here is resolved relative to the script itself. This file lives
+# outside chezmoi's source root (see .chezmoiroot), next to the Brewfile and
+# package manifests, in the chezmoi source directory (`chezmoi source-path`).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 detect_os() {

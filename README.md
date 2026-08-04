@@ -1,31 +1,44 @@
 # dotfiles
 
 Personal dotfiles for macOS, Debian/Ubuntu-family Linux (PikaOS, etc.), and
-NixOS. Managed as a bare git repo checked out on top of `$HOME`, rather than
-symlinked from a cloned working copy.
+NixOS. Managed with [chezmoi](https://www.chezmoi.io/): this repo is
+chezmoi's *source* directory, applied on top of `$HOME` rather than
+symlinked or checked out directly onto it.
+
+The chezmoi source state lives under `home/` (see `.chezmoiroot`) so that
+non-dotfile assets — `Brewfile`, package manifests, `install.sh`, this
+README — can sit at the repo root without chezmoi trying to deploy them into
+`$HOME` too. File names under `home/` use chezmoi's naming attributes
+(`dot_zshrc` → `~/.zshrc`, `executable_dot_zsh_aliases` → `~/.zsh_aliases`,
+etc.) — see [chezmoi's source state docs](https://www.chezmoi.io/reference/source-state-attributes/)
+if a name under `home/` looks unfamiliar.
 
 ## Install on a new machine
 
-**1. Bootstrap** — clones this repo as a bare repo and checks it out onto
-`$HOME`. Safe to run on a machine that already has its own default
-`.zshrc`/`.zprofile`/etc.: anything that would conflict with the checkout is
-moved to `~/.dotfiles-backup` first instead of being overwritten.
+**1. Bootstrap** — installs chezmoi itself, then has chezmoi clone this repo
+as its source directory and apply it onto `$HOME`. Safe to run on a machine
+that already has its own default `.zshrc`/`.zprofile`/etc.: anything that
+would conflict with the apply is moved to `~/.dotfiles-backup` first instead
+of being overwritten.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/jonstump/dotfiles/main/bootstrap.sh | bash
 ```
 
 Only `curl` is required up front — the script installs git itself if it's
-missing. On macOS that means kicking off the Xcode Command Line Tools install
-(git ships with them); accept the dialog, let it finish, then re-run the same
-command. On Linux it installs git via `apt-get`/`dnf`/`pacman`/`zypper`. On
-NixOS, run it inside `nix-shell -p git`.
+missing (chezmoi day-to-day usage below wants a real git, even though chezmoi
+can clone without one). On macOS that means kicking off the Xcode Command
+Line Tools install (git ships with them); accept the dialog, let it finish,
+then re-run the same command. On Linux it installs git via
+`apt-get`/`dnf`/`pacman`/`zypper`. On NixOS, run it inside `nix-shell -p git`.
+chezmoi itself is installed via its official install script into
+`~/.local/bin`, on all three platforms — no brew/apt package needed.
 
 **2. Install tooling** — open a new shell, then run the OS-detecting
-installer that was just checked out:
+installer that was just applied:
 
 ```sh
-$HOME/install.sh
+$(chezmoi source-path)/install.sh
 ```
 
 - **macOS**: installs Homebrew if it's missing, then `brew bundle --file="$SCRIPT_DIR/Brewfile"`
@@ -64,7 +77,8 @@ exists before doing anything.
 ### Machine-local overrides
 
 Three files are sourced if present and are deliberately **not** tracked, so
-each machine can differ without dirtying `config status`:
+each machine can differ without chezmoi ever seeing them — they aren't part
+of the source state, so `chezmoi apply`/`chezmoi diff` never touch them:
 
 | File | For |
 |---|---|
@@ -73,7 +87,7 @@ each machine can differ without dirtying `config status`:
 | `~/.zshrc.local` | anything else shell-local |
 
 `~/.gitconfig.local` is the one you need on a fresh box: without it,
-`config commit` fails with *"Please tell me who you are"*.
+`git commit` fails with *"Please tell me who you are"*.
 
 ### Sharing a machine with Nix
 
@@ -88,10 +102,11 @@ The rule is **one writer per path**:
 So in the flake repo, deliberately **don't** set `programs.zsh.enable = true`
 — install zsh and its plugins as packages and let this repo's `.zshrc` stay
 authoritative. Both systems writing `~/.zshrc` collides in both directions:
-`home-manager switch` refuses to activate over a tracked file (or with
-`-b backup` quietly renames it, so `config status` reports it deleted), while
-`config checkout` will happily replace HM's read-only store symlink with a
-regular file that the next switch then reverts.
+`home-manager switch` refuses to activate over a file it doesn't already own
+(or with `-b backup` quietly renames it, so `chezmoi diff` reports it
+changed on the next run), while `chezmoi apply` will happily replace HM's
+read-only store symlink with a regular file that the next switch then
+reverts.
 
 When home-manager needs to inject something into the shell, have it write a
 separate file instead. `.zshrc` sources this near the end if it exists:
@@ -105,28 +120,31 @@ file.
 
 ## Day-to-day usage
 
-This repo is checked out directly on top of `$HOME` via a bare repo at
-`~/Repos/dotfiles`, using the `config` alias defined in `.zsh_aliases`:
+This repo is chezmoi's source directory, cloned by `bootstrap.sh` to
+chezmoi's default location (`~/.local/share/chezmoi`, unless
+`$CHEZMOI_SOURCE_DIR` says otherwise). The `dotfiles` alias defined in
+`.zsh_aliases` is just a shorter name for the `chezmoi` binary:
 
 ```sh
-alias config='command git --git-dir=$DOTFILES/ --work-tree=$HOME'
+alias dotfiles='chezmoi'
 ```
 
-Use `config` exactly like `git`, just pointed at your home directory instead
-of a normal working copy:
+Common commands, run from anywhere (chezmoi always knows where its source
+directory is):
 
 ```sh
-config status
-config add <file>
-config commit -m "..."
-config push
+dotfiles diff                    # see what `apply` would change
+dotfiles apply                   # apply the source state to $HOME
+dotfiles edit ~/.zshrc           # edit the source file for a target, by target path
+dotfiles cd                      # cd into the source directory (i.e. this repo) to edit/commit/push directly
+dotfiles add ~/.config/foo/bar   # start tracking a new file — adds it under home/ with the right dot_/executable_ name
+dotfiles re-add                  # pull local edits to a target back into the source state
 ```
 
-`status.showUntrackedFiles` is set to `no` for this repo, so `config status`
-only shows changes to files it already tracks — it won't try to list every
-unrelated file in `$HOME`. Avoid `config add -A`/`config add .` for that
-reason; add files by name, or use `config add -u` to stage modifications/
-deletions to already-tracked files only.
+Unlike the old bare-repo `config status`, chezmoi never scans `$HOME` for
+untracked files at all — it only ever looks at the exact paths declared
+under `home/` in this repo, so there's no untracked-file noise to filter and
+no equivalent of `config add -A` to avoid.
 
 Updates to installed tools are handled by [`topgrade`](https://github.com/topgrade-rs/topgrade)
 rather than a dotfiles alias — run `topgrade` directly. It comes from the
@@ -135,7 +153,11 @@ isn't packaged for Debian/Ubuntu.
 
 ## What's here
 
-| Path | Purpose |
+Paths below are the **target** paths under `$HOME` — i.e. what you'd
+`cat`/edit once applied. Their source lives under the matching chezmoi name
+in `home/` (e.g. `~/.zshrc` is `home/executable_dot_zshrc`).
+
+| Target path | Purpose |
 |---|---|
 | `.zshrc`, `.zprofile`, `.zsh_aliases` | Shell config. OS-detected (`IS_MAC`/`IS_LINUX`) where Mac and Linux paths diverge — Homebrew-only lines are guarded so they're inert on Linux/NixOS, and use `$HOMEBREW_PREFIX` rather than assuming Apple Silicon. |
 | `.gitconfig` | Wires up `git-delta` as the pager and includes `~/.gitconfig.local` for identity. |
@@ -144,14 +166,22 @@ isn't packaged for Debian/Ubuntu.
 | `.config/tmux/tmux.conf.local` | Local oh-my-tmux overrides. |
 | `.config/kitty/` | Kitty terminal config, gruvbox colorscheme. |
 | `.config/lf/lfrc` | [lf](https://github.com/gokcehan/lf) file manager config. |
+| `.zsh_plugins.txt` | zsh plugin bundles, loaded by [antidote](https://github.com/mattmc3/antidote). Edit and open a new shell — the static cache under `~/.cache/antidote/` rebuilds itself; run `antidote update` to update the plugins. |
+| `.zsh_plugins.p10k.txt` | Fallback powerlevel10k, used only where no native package provides it (i.e. Debian/Ubuntu). |
+
+The rest of the repo lives outside `home/` (see `.chezmoiroot`), so chezmoi
+never deploys it into `$HOME` — these are read from wherever chezmoi cloned
+this repo (`chezmoi source-path`), not from `home/`:
+
+| Path | Purpose |
+|---|---|
+| `.chezmoiroot` | Points chezmoi's source state at `home/`, so everything below can share this repo without being deployed to `$HOME`. |
 | `Brewfile` | macOS package manifest (`brew bundle --file=Brewfile`). |
 | `Brewfile.mas` | Mac App Store entries, split out — run by hand after signing in to the App Store. |
 | `apt-packages.txt` | Linux (apt) package manifest — a curated core set, not a full mirror of `Brewfile`; extend as needed per-distro. |
 | `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
-| `bootstrap.sh` | One-time bare-repo checkout for a brand new machine. |
+| `bootstrap.sh` | One-time chezmoi install + init/apply for a brand new machine. |
 | `install.sh` | OS-detecting package/tool installer, run after `bootstrap.sh`. |
-| `.zsh_plugins.txt` | zsh plugin bundles, loaded by [antidote](https://github.com/mattmc3/antidote). Edit and open a new shell — the static cache under `~/.cache/antidote/` rebuilds itself; run `antidote update` to update the plugins. |
-| `.zsh_plugins.p10k.txt` | Fallback powerlevel10k, used only where no native package provides it (i.e. Debian/Ubuntu). |
 | `.dots_archive/` | Retired scripts/configs kept for reference only — not part of the active install path. |
 
 ## Shell auto-tmux behavior
