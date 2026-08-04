@@ -44,11 +44,46 @@ detect_os() {
   fi
 }
 
+# Renames $1 aside with a timestamp suffix instead of deleting it — mirrors
+# upstream oh-my-tmux's own install.sh, which never destroys existing state,
+# only backs it up before replacing it.
+backup_aside() {
+  local path="$1"
+  [ -e "$path" ] || [ -L "$path" ] || return 0
+  local backup="$path.bak.$(date +%Y%m%d%H%M%S)"
+  echo "Backing up $path -> $backup"
+  mv "$path" "$backup"
+}
+
 install_oh_my_tmux() {
   local target="$HOME/.local/share/tmux/oh-my-tmux"
+
+  # This used to only clone once, when the directory didn't exist yet — a
+  # broken clone (interrupted `git clone`, corrupted .git) left it "existing"
+  # forever, so every later run silently no-op'd instead of fixing it. Detect
+  # that and self-heal by backing up (never deleting) and re-cloning, the same
+  # way upstream's own install.sh does.
+  if [ -d "$target" ] && { ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1 || [ ! -f "$target/.tmux.conf" ]; }; then
+    echo "oh-my-tmux clone at $target looks broken; re-cloning."
+    backup_aside "$target"
+  fi
+
   if [ ! -d "$target" ]; then
     echo "Cloning oh-my-tmux -> $target"
     git clone https://github.com/gpakosz/.tmux.git "$target"
+  fi
+
+  # tpm and the plugins it manages (vim-tmux-navigator, tmux-powerkit — see
+  # tmux.conf.local) live under ~/.config/tmux/plugins: oh-my-tmux resolves
+  # TMUX_PLUGIN_MANAGER_PATH next to tmux.conf, and this repo's tmux.conf
+  # lives under ~/.config/tmux rather than directly in $HOME. oh-my-tmux's own
+  # bootstrap only *creates* tpm if that directory is entirely absent — it
+  # never repairs one that exists but is broken, so a corrupted checkout means
+  # plugins silently stop installing/updating with no error shown anywhere.
+  local plugins_dir="$HOME/.config/tmux/plugins"
+  if [ -d "$plugins_dir/tpm" ] && [ ! -x "$plugins_dir/tpm/tpm" ]; then
+    echo "tpm checkout at $plugins_dir/tpm looks broken; resetting plugins."
+    backup_aside "$plugins_dir"
   fi
 }
 
