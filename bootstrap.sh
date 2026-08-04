@@ -39,7 +39,7 @@ ensure_git() {
       sudo zypper --non-interactive install git
     else
       echo "No known package manager found. Install git yourself" >&2
-      echo "(e.g. nix-shell -p git), then re-run this script." >&2
+      echo "and re-run this script." >&2
       exit 1
     fi
   fi

@@ -9,9 +9,6 @@
 #   dotfiles that load them only look in fixed non-apt locations — and
 #   lazygit/topgrade, which check apt first and only fall back to upstream if
 #   this distro/release doesn't package them).
-# Nix (any Linux host): packages are declared in a separate flake/home-manager
-#   repo, not here — this only sets up the non-package config pieces
-#   (oh-my-tmux, antidote).
 set -euo pipefail
 
 # Everything here is resolved relative to the script itself. This file lives
@@ -22,23 +19,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 detect_os() {
   if [ "$(uname -s)" = "Darwin" ]; then
-    # nix-darwin looks exactly like plain macOS to `uname`, so it used to fall
-    # into install_mac — installing Homebrew and running the whole Brewfile,
-    # much of which the flake already provides. Keep brew as a choice there.
-    if [ -e /run/current-system/sw/bin/darwin-rebuild ]; then
-      echo "nix-darwin"
-    else
-      echo "mac"
-    fi
+    echo "mac"
     return
   fi
 
   if command -v apt-get >/dev/null 2>&1; then
     echo "apt"
-  elif command -v nix >/dev/null 2>&1; then
-    # Nix on Fedora/Arch/anything else used to fall through to "unknown" and
-    # do nothing at all — not even the platform-independent oh-my-tmux clone.
-    echo "nix"
   else
     echo "unknown"
   fi
@@ -92,8 +78,8 @@ install_oh_my_tmux() {
 # landed in Debian testing after this script first needed the upstream
 # fallback below), and this repo's apt path isn't limited to one distro's
 # archive — so check apt at run time instead of hardcoding "not packaged" and
-# letting that guess go stale or wrong. Also safe to call from the
-# mac/nix-darwin/nix paths, where apt-cache doesn't exist at all.
+# letting that guess go stale or wrong. Also safe to call from the mac path,
+# where apt-cache doesn't exist at all.
 apt_has_candidate() {
   command -v apt-cache >/dev/null 2>&1 || return 1
   local candidate
@@ -103,23 +89,21 @@ apt_has_candidate() {
 
 # zsh plugin manager, replacing antigen (#26). Cloned rather than installed as
 # a package because it's pure zsh and apt has no version of it across the
-# releases this repo targets, so one mechanism covers all three platforms.
+# releases this repo targets, so one mechanism covers both platforms.
 # Not apt_has_candidate-checked like lazygit/topgrade below: .zshrc discovers
-# antidote by checking a fixed list of paths (nix, Homebrew, or this clone at
+# antidote by checking a fixed list of paths (Homebrew, or this clone at
 # ~/.antidote), not via `command -v`, so an apt package landing anywhere else
 # would silently go unused instead of being picked up.
 # .zshrc clones it too if it's missing; doing it here keeps the first shell
 # after install.sh from paying for it.
 install_antidote() {
   local target="$HOME/.antidote" packaged
-  # Skip if the flake repo or Homebrew already provides one — .zshrc prefers
-  # those over the clone, so cloning anyway would leave an unused copy that
-  # nothing ever updates. (Written as an if rather than `[ -e ] && return`:
-  # that form leaves the loop with a non-zero status on the last iteration,
-  # which is a live grenade under the `set -e` at the top of this file.)
+  # Skip if Homebrew already provides one — .zshrc prefers that over the
+  # clone, so cloning anyway would leave an unused copy that nothing ever
+  # updates. (Written as an if rather than `[ -e ] && return`: that form
+  # leaves the loop with a non-zero status on the last iteration, which is a
+  # live grenade under the `set -e` at the top of this file.)
   for packaged in \
-    /run/current-system/sw/share/antidote/antidote.zsh \
-    "$HOME/.nix-profile/share/antidote/antidote.zsh" \
     "${HOMEBREW_PREFIX:-}/share/antidote/antidote.zsh"
   do
     if [ -e "$packaged" ]; then
@@ -495,20 +479,13 @@ want_desktop_packages() {
 
 # The old `sudo chsh -s "$(command -v zsh)" "$USER"` was fragile in three ways:
 # $USER isn't always set (fatal under `set -u`), it's `root` under
-# `sudo ./install.sh`, and a Nix-store zsh isn't listed in /etc/shells (so chsh
-# exits non-zero and, as the last command under `set -e`, aborted the whole
-# installer) as well as being garbage-collectable, which can lock you out.
+# `sudo ./install.sh`, and a zsh that isn't listed in /etc/shells makes chsh
+# exit non-zero and, as the last command under `set -e`, abort the whole
+# installer — as well as being removable, which can lock you out.
 set_login_shell() {
   local target_user zsh_path current
   target_user="$(id -un)"
   zsh_path="$(command -v zsh || true)"
-
-  # Prefer a system zsh over a Nix-store one — store paths are GC-able.
-  case "$zsh_path" in
-    /nix/store/*|"$HOME"/.nix-profile/*)
-      if [ -x /usr/bin/zsh ]; then zsh_path=/usr/bin/zsh; else zsh_path=""; fi
-      ;;
-  esac
 
   if [ -z "$zsh_path" ]; then
     echo "Skipping chsh: no suitable zsh found." >&2
@@ -578,28 +555,9 @@ install_apt() {
   set_login_shell
 }
 
-install_nix_darwin() {
-  echo "nix-darwin detected: packages are managed by your flake, so the" \
-       "Brewfile is not applied automatically."
-  echo "Run 'brew bundle --file=$SCRIPT_DIR/Brewfile' by hand if you also" \
-       "want the Homebrew casks."
-  install_oh_my_tmux
-  install_antidote
-  mkdir -p "$HOME/.nvm"
-}
-
-install_nix() {
-  echo "Nix detected: packages come from your flake repo," \
-       "not this one. Only setting up non-package config here."
-  install_oh_my_tmux
-  install_antidote
-}
-
 case "$(detect_os)" in
   mac)        install_mac ;;
   apt)        install_apt ;;
-  nix-darwin) install_nix_darwin ;;
-  nix)        install_nix ;;
   *)
     # Still do the platform-independent part rather than skipping everything.
     echo "Unrecognized OS/package manager — skipping package installation." >&2
