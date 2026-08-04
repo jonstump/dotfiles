@@ -7,6 +7,8 @@
 #
 # Like apt-packages.txt, this is best-effort: anything unavailable on the
 # running distro is reported and skipped rather than failing the install.
+# Any package also listed in apt-flatpak-overrides.txt is skipped instead of
+# apt-installed if its mapped Flatpak is already present.
 
 # GPU-based terminal emulator
 kitty
@@ -21,7 +23,8 @@ xdg-utils
 xclip
 wl-clipboard
 
-# Instant messaging application focusing on security.
-# amd64 only — install.sh doesn't add the Signal repo on other architectures,
-# so this is skipped there.
-signal-desktop
+# Signal (instant messaging) is installed by install_signal() in install.sh,
+# not listed here — it needs its own apt repo added first, so it can't go
+# through the generic Flatpak-override check above like an ordinary package.
+# Its override still lives in apt-flatpak-overrides.txt, same as any other
+# app's.
