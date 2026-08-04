@@ -41,8 +41,13 @@ installer that was just applied:
 $(chezmoi source-path)/../install.sh
 ```
 
-- **macOS**: installs Homebrew if it's missing, then `brew bundle --file="$SCRIPT_DIR/Brewfile"`
-  (i.e. the `Brewfile` next to `install.sh`).
+- **macOS**: installs Homebrew if it's missing, then checks
+  `brew bundle --file="$SCRIPT_DIR/Brewfile"` (i.e. the `Brewfile` next to
+  `install.sh`) against what's already installed and installs only what's
+  missing, with `HOMEBREW_NO_AUTO_UPDATE=1` and `--no-upgrade` — it never
+  upgrades already-installed formulae/casks or triggers a `brew update` tap
+  refresh. On an already-set-up machine it's a no-op; run `topgrade` by hand
+  when you want upgrades.
   - Mac App Store apps are **not** included. `mas` can only install titles
     already associated with the signed-in Apple ID, so on a fresh machine
     every entry fails. Sign in to the App Store, then run
