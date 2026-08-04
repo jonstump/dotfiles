@@ -39,7 +39,7 @@ ensure_git() {
       sudo zypper --non-interactive install git
     else
       echo "No known package manager found. Install git yourself" >&2
-      echo "(on NixOS: nix-shell -p git), then re-run this script." >&2
+      echo "(e.g. nix-shell -p git), then re-run this script." >&2
       exit 1
     fi
   fi
@@ -55,8 +55,8 @@ ensure_git() {
 
 # Installs the chezmoi binary itself via its official install script, which
 # auto-detects OS/arch and drops a static binary into ~/.local/bin — no brew/
-# apt package needed, and it works the same on macOS, Linux and NixOS (inside
-# a shell that already has curl, which all three do by this point).
+# apt package needed, and it works the same on macOS and Linux (inside a
+# shell that already has curl, which both have by this point).
 # ~/.local/bin is already on PATH for interactive shells via .zshrc; add it
 # here too so this script can call chezmoi immediately after installing it.
 ensure_chezmoi() {
