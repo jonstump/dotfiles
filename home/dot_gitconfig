@@ -24,7 +24,12 @@
 	line-numbers = true
 
 [merge]
-	conflictstyle = zdiff3
+	# diff3, not zdiff3: zdiff3 needs git >= 2.35 (Jan 2022), but this repo
+	# installs git from apt on Debian 11 / Ubuntu 20.04 / 22.04, which ship
+	# 2.30 / 2.25 / 2.34. There, a conflicted merge/pull dies with
+	# "fatal: unknown conflict style 'zdiff3'". diff3 works everywhere and
+	# still shows all three sides (ours / base / theirs).
+	conflictstyle = diff3
 
 [init]
 	defaultBranch = main
