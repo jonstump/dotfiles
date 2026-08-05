@@ -188,7 +188,8 @@ install_lazygit() {
 
   if apt_has_candidate lazygit; then
     echo "Installing lazygit (apt)"
-    sudo apt-get install -y lazygit
+    sudo apt-get install -y lazygit || \
+      echo "WARNING: lazygit (apt) install failed; continuing with the rest of the setup." >&2
     return
   fi
 
@@ -245,7 +246,8 @@ install_topgrade() {
 
   if apt_has_candidate topgrade; then
     echo "Installing topgrade (apt)"
-    sudo apt-get install -y topgrade
+    sudo apt-get install -y topgrade || \
+      echo "WARNING: topgrade (apt) install failed; continuing with the rest of the setup." >&2
     return
   fi
 
@@ -265,7 +267,8 @@ install_zsh() {
 
   if apt_has_candidate zsh; then
     echo "Installing zsh (apt)"
-    sudo apt-get install -y zsh
+    sudo apt-get install -y zsh || \
+      echo "WARNING: zsh (apt) install failed; continuing with the rest of the setup." >&2
     return
   fi
 
@@ -574,7 +577,9 @@ install_apt() {
   # add_apt_repo needs curl and gpg, and neither is guaranteed on a minimal
   # Debian image — bootstrap them before adding any repo.
   apt_update
-  sudo apt-get install -y curl gnupg ca-certificates
+  sudo apt-get install -y curl gnupg ca-certificates || \
+    echo "WARNING: curl/gnupg/ca-certificates install failed; add_apt_repo calls" \
+      "below may fail as a result. Continuing with the rest of the setup." >&2
 
   apt_install_manifest "$SCRIPT_DIR/apt-packages.txt"
 
