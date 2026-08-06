@@ -31,16 +31,25 @@ ensure_git() {
     echo "git not found — installing it first."
     if command -v apt-get >/dev/null 2>&1; then
       sudo apt-get update && sudo apt-get install -y git ca-certificates
-    elif command -v dnf >/dev/null 2>&1; then
-      sudo dnf install -y git
-    elif command -v pacman >/dev/null 2>&1; then
-      sudo pacman -Sy --noconfirm git
-    elif command -v zypper >/dev/null 2>&1; then
-      sudo zypper --non-interactive install git
     else
-      echo "No known package manager found. Install git yourself" >&2
-      echo "and re-run this script." >&2
-      exit 1
+      # Non-Debian family (Fedora/Arch/openSUSE). git still gets bootstrapped
+      # so chezmoi can clone/apply, but install.sh won't install packages on
+      # these — it only does macOS (Homebrew) and Debian/Ubuntu-family. Set
+      # expectations before the user runs it.
+      if command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y git
+      elif command -v pacman >/dev/null 2>&1; then
+        sudo pacman -Sy --noconfirm git
+      elif command -v zypper >/dev/null 2>&1; then
+        sudo zypper --non-interactive install git
+      else
+        echo "No known package manager found. Install git yourself" >&2
+        echo "and re-run this script." >&2
+        exit 1
+      fi
+      echo "Note: this repo's install.sh only installs packages on Debian/Ubuntu" >&2
+      echo "family systems (macOS uses Homebrew). On this distro it will only set" >&2
+      echo "up oh-my-tmux and antidote — install the rest yourself." >&2
     fi
   fi
 
