@@ -10,8 +10,15 @@
 # Desktop/GUI apps live in pacman-packages-desktop.txt instead, so a headless
 # box doesn't get them.
 
-# build tools needed by pyenv/source builds
-base-devel
+# Build tools needed by pyenv/source builds. base-devel is a package
+# *group*, not a package, and `pacman -S --noconfirm` does NOT suppress its
+# member-selection prompt (documented pacman gotcha) — so list the actual
+# members we need instead of the group.
+gcc
+make
+patch
+pkgconf
+fakeroot
 cmake
 git
 curl
@@ -72,6 +79,5 @@ ncurses
 xz
 tk
 libxml2
-libxmlsec1
+xmlsec
 libffi
-liblzma
