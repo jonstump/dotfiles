@@ -1,7 +1,8 @@
 # dotfiles
 
 Personal dotfiles for macOS, Debian/Ubuntu-family Linux (PikaOS, etc.), Arch
-Linux, and Fedora. Managed with [chezmoi](https://www.chezmoi.io/): this repo
+Linux, Fedora, openSUSE, and Bazzite. Managed with
+[chezmoi](https://www.chezmoi.io/): this repo
 is chezmoi's *source* directory, applied on top of `$HOME` rather than
 symlinked or checked out directly onto it.
 
@@ -87,9 +88,22 @@ $(chezmoi source-path)/../install.sh
   their upstream installers. `zsh` is dnf-installed. GUI apps live in
   `dnf-packages-desktop.txt`. Signal needs an external Copr repo that
   `install.sh` doesn't add — install it yourself.
-- **openSUSE (zypper)**: `bootstrap.sh` will still get git installed and
-  `chezmoi apply` will work, but `install.sh` doesn't install packages on it
-  (only oh-my-tmux and antidote).
+- **openSUSE (zypper)**: installs everything in `zypper-packages.txt` (Leap
+  and Tumbleweed share one path; package names verified against the OSS
+  repos — `fd`, `the_silver_searcher`, `git-delta`, `ImageMagick`,
+  `libopenssl-devel`, `libbz2-devel`, `sqlite3-devel`, `xmlsec1-devel`, etc.).
+  `topgrade` is packaged, `neovim`/`nvm`/`pyenv`/`lazygit`/`oh-my-tmux`/
+  `antidote` come from their upstream installers, and `zsh` is zypper-installed.
+  GUI apps live in `zypper-packages-desktop.txt`. Signal isn't in the official
+  repos — install via its network repo or Flatpak yourself.
+- **Bazzite (atomic, uBlue/Fedora-derived)**: detected via `ID=bazzite` in
+  `/etc/os-release` and treated as its own target, not plain Fedora. The root
+  fs is read-only (rpm-ostree layering requires a reboot and is discouraged),
+  so the toolset installs via Homebrew — the image provisions Linuxbrew at
+  first boot, and the shared `Brewfile` is used as-is (cask/mas entries are
+  ignored on Linux). Bazzite maintains its own brew updates via systemd
+  timers. `chsh` is deliberately skipped (Bazzite's docs warn it can break
+  session login); set zsh in the terminal emulator profile instead.
 
 `install.sh` is safe to re-run; every step checks whether its target already
 exists before doing anything.
@@ -173,9 +187,11 @@ from `home/` itself:
 | `apt-packages.txt` | Linux (apt) package manifest — a curated core set, not a full mirror of `Brewfile`; extend as needed per-distro. |
 | `pacman-packages.txt` | Linux (Arch/pacman) package manifest — official repo only, no AUR packages. |
 | `dnf-packages.txt` | Linux (Fedora/dnf) package manifest — curated core set, verify with `dnf search` per distro. |
+| `zypper-packages.txt` | Linux (openSUSE/zypper) package manifest — Leap and Tumbleweed share one path; verify with `zypper search` per release. |
 | `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
 | `pacman-packages-desktop.txt` | Linux (Arch) GUI/desktop packages, same display gate. |
 | `dnf-packages-desktop.txt` | Linux (Fedora) GUI/desktop packages, same display gate. |
+| `zypper-packages-desktop.txt` | Linux (openSUSE) GUI/desktop packages, same display gate. |
 | `apt-flatpak-overrides.txt` | Maps an apt package to a Flatpak application ID; `install.sh` skips apt-installing a package if its mapped Flatpak is already present. Add a line to avoid double-installing an app you manage via Flatpak. |
 | `bootstrap.sh` | One-time chezmoi install + init/apply for a brand new machine. |
 | `install.sh` | OS-detecting package/tool installer, run after `bootstrap.sh`. |
