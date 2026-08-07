@@ -41,11 +41,13 @@ detect_os() {
 PM=""
 
 # Refreshes the package index. Each manager needs a different invocation (apt
-# must run before installing; pacman can install directly; dnf uses -y).
+# must run before installing; pacman must sync with -u to avoid Arch's
+# unsupported partial-upgrade state, a bare -Sy is documented as unsafe; dnf
+# uses -y).
 pm_update() {
   case "$PM" in
     apt)    apt_update ;;
-    pacman) sudo pacman -Sy --noconfirm ;;
+    pacman) sudo pacman -Syu --noconfirm ;;
     dnf)    sudo dnf check-update >/dev/null 2>&1 || true ;;
   esac
 }
@@ -189,7 +191,9 @@ install_antidote() {
 install_nvm() {
   if [ ! -d "$HOME/.nvm" ]; then
     echo "Installing nvm"
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+    if ! curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash; then
+      echo "WARNING: nvm install failed; continuing with the rest of the setup." >&2
+    fi
   fi
 }
 
@@ -332,7 +336,9 @@ install_lf() {
 install_pyenv() {
   if [ ! -d "$HOME/.pyenv" ]; then
     echo "Installing pyenv"
-    curl https://pyenv.run | bash
+    if ! curl -fsSL https://pyenv.run | bash; then
+      echo "WARNING: pyenv install failed; continuing with the rest of the setup." >&2
+    fi
   fi
 }
 
