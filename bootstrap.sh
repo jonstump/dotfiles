@@ -34,7 +34,7 @@ ensure_git() {
     elif command -v dnf >/dev/null 2>&1; then
       sudo dnf install -y git
     elif command -v pacman >/dev/null 2>&1; then
-      sudo pacman -Sy --noconfirm git
+      sudo pacman -Syu --noconfirm git
     elif command -v zypper >/dev/null 2>&1; then
       sudo zypper --non-interactive install git
       # git still gets bootstrapped so chezmoi can clone/apply, but
