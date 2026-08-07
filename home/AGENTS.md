@@ -113,7 +113,10 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 - `dot_gitconfig` → `~/.gitconfig`: **identity is deliberately not tracked** —
   it's a public repo. `[include] path = ~/.gitconfig.local` for `[user]`; without
   that file, commits fail with "Please tell me who you are". Delta is the pager
-  and interactive diffFilter; `merge.conflictstyle = zdiff3`; init default branch
+  and interactive diffFilter; `merge.conflictstyle = diff3` (deliberately not
+  `zdiff3` — that needs git ≥ 2.35, but apt-installed git on Debian 11 /
+  Ubuntu 20.04 / 22.04 is older and fails on the first conflicted merge);
+  init default branch
   main; `pull.ff = only`. Note `gitconfig.local` and `zshrc.local` are both
   untracked-by-design local escape hatches — never add identical config here.
 
