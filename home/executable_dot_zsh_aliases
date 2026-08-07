@@ -32,13 +32,18 @@ alias dcb="docker compose build"
 # install.sh also symlinks them into ~/.local/bin, which covers non-interactive
 # use; these just make interactive shells work if that hasn't run yet.
 #
+# Linux-only (macOS/brew never ship batcat/fdfind), and only alias when the
+# real binary is absent: zsh aliases beat PATH lookup forever, so without the
+# `! command -v bat` guard a later real `bat` install (cargo, newer deb, Nix)
+# would still silently route to the old batcat with no way to notice.
+#
 # NB: written as `if` rather than `a && ! b && alias …` — zsh won't parse a
 # negation in the middle of an && chain ("parse error near `\n'"), even though
 # bash accepts it, and a parse error here breaks every shell.
-if command -v batcat >/dev/null 2>&1 && ! command -v bat >/dev/null 2>&1; then
+if [ -n "$IS_LINUX" ] && command -v batcat >/dev/null 2>&1 && ! command -v bat >/dev/null 2>&1; then
   alias bat='batcat'
 fi
-if command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
+if [ -n "$IS_LINUX" ] && command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
   alias fd='fdfind'
 fi
 

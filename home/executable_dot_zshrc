@@ -65,10 +65,16 @@ unset _candidate
 # before install.sh has run — on a fresh machine bootstrap.sh checks out this
 # .zshrc first, so the very next terminal would otherwise come up bare.
 if [ -z "$_antidote" ] && command -v git >/dev/null 2>&1; then
-  echo "Cloning antidote -> $HOME/.antidote"
-  if git clone --depth=1 https://github.com/mattmc3/antidote.git "$HOME/.antidote"; then
+  if [ -e "$HOME/.antidote/antidote.zsh" ]; then
     _antidote="$HOME/.antidote/antidote.zsh"
+  else
+    echo "Cloning antidote -> $HOME/.antidote"
+    git clone --depth=1 https://github.com/mattmc3/antidote.git "$HOME/.antidote" >/dev/null 2>&1 \
+      && _antidote="$HOME/.antidote/antidote.zsh" \
+      || echo "warning: antidote clone failed; zsh plugins/p10k won't load" >&2
   fi
+elif [ -n "$IS_LINUX" ] && ! command -v git >/dev/null 2>&1; then
+  echo "warning: git not found; zsh plugins/p10k won't load (apt install git)" >&2
 fi
 
 if [ -n "$_antidote" ]; then
