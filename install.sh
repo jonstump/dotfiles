@@ -23,12 +23,28 @@ detect_os() {
     return
   fi
 
+  # Bazzite (uBlue image built on Fedora Silverblue/Kinoite) is atomic:
+  # rpm-ostree based, read-only root. It has dnf present but must NOT be
+  # treated as plain Fedora — system-level packages go through Homebrew (which
+  # the image provisions at first boot) instead of dnf. Check os-release for
+  # ID=bazzite before the generic dnf branch.
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    if [ "${ID:-}" = "bazzite" ]; then
+      echo "bazzite"
+      return
+    fi
+  fi
+
   if command -v apt-get >/dev/null 2>&1; then
     echo "apt"
   elif command -v pacman >/dev/null 2>&1; then
     echo "pacman"
   elif command -v dnf >/dev/null 2>&1; then
     echo "dnf"
+  elif command -v zypper >/dev/null 2>&1; then
+    echo "zypper"
   else
     echo "unknown"
   fi
@@ -49,6 +65,7 @@ pm_update() {
     apt)    apt_update ;;
     pacman) sudo pacman -Syu --noconfirm ;;
     dnf)    sudo dnf check-update >/dev/null 2>&1 || true ;;
+    zypper) sudo zypper --non-interactive refresh ;;
   esac
 }
 
@@ -72,6 +89,12 @@ pm_install() {
     dnf)
       if ! sudo dnf install -y "$@"; then
         echo "WARNING: dnf install failed for: $*" >&2
+        return 1
+      fi
+      ;;
+    zypper)
+      if ! sudo zypper --non-interactive install --no-recommends "$@"; then
+        echo "WARNING: zypper install failed for: $*" >&2
         return 1
       fi
       ;;
@@ -148,6 +171,9 @@ pm_has_candidate() {
       ;;
     dnf)
       dnf list available "$1" >/dev/null 2>&1
+      ;;
+    zypper)
+      zypper --non-interactive search --match-exact --installed-only "$1" >/dev/null 2>&1
       ;;
     *)
       return 1
@@ -454,6 +480,69 @@ install_mac() {
   fi
 }
 
+# Bazzite (uBlue / Fedora Silverblue-derived atomic distro). The root fs is
+# read-only (rpm-ostree image layering requires a reboot and is discouraged
+# for frequently-changed tools), so the repo's CLI toolset goes through
+# Homebrew instead: the Bazzite image provisions Linuxbrew at first boot
+# (/home/linuxbrew/.linuxbrew) and auto-updates it with its own systemd
+# timers, so the shared Brewfile covers everything with no layering. This is
+# also why there's no dnf manifest for Bazzite.
+install_bazzite() {
+  # Bazzite's first-boot brew provisioning (brew-setup.service) is known to
+  # occasionally not complete; fall back to the standard install if brew
+  # isn't usable yet.
+  if ! command -v brew >/dev/null 2>&1; then
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "Homebrew not found; installing it (Bazzite's first-boot provisioning"
+    echo "may not have completed)."
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  fi
+
+  # Config first (same reasoning as install_mac — a fresh shell must not come
+  # up in an unconfigured tmux).
+  install_oh_my_tmux
+  install_antidote
+  mkdir -p "$HOME/.nvm"
+
+  # The shared Brewfile: cask/mas entries are macOS-only and brew bundle
+  # ignores them on Linux. Formula lines (bat, fd, fzf, delta, ripgrep,
+  # lazygit, topgrade, neovim, zsh, lf, node, python, etc.) install the whole
+  # toolset. Bazzite manages its own brew updates via systemd timers, so
+  # HOMEBREW_NO_AUTO_UPDATE keeps this run from fighting them.
+  export HOMEBREW_NO_AUTO_UPDATE=1
+  local brewfile="$SCRIPT_DIR/Brewfile"
+  if brew bundle check --no-upgrade --file="$brewfile" >/dev/null 2>&1; then
+    echo "Brewfile dependencies already installed; nothing to do."
+  else
+    echo "Missing Brewfile dependencies:"
+    brew bundle check --no-upgrade --verbose --file="$brewfile" || true
+    if ! brew bundle install --no-upgrade --file="$brewfile"; then
+      echo "WARNING: some Brewfile entries failed to install; continuing." >&2
+    fi
+  fi
+
+  # nvm and pyenv come from the Brewfile on Bazzite. The Homebrew nvm formula
+  # needs NVM_DIR to exist (same caveat as install_mac), and .zprofile expects
+  # PYENV_ROOT.
+  mkdir -p "$HOME/.nvm" "$HOME/.pyenv"
+
+  if want_desktop_packages; then
+    install_nerd_font
+  fi
+
+  # Deliberately NO set_login_shell: Bazzite's docs recommend against a
+  # system-wide chsh (known to break KDE session login and Flatpak apps that
+  # spawn a login shell). Set zsh in the terminal emulator profile instead.
+  if command -v zsh >/dev/null 2>&1; then
+    echo "Bazzite: skipping chsh — set your shell to zsh in the terminal"
+    echo "emulator's profile instead (Bazzite recommends against system chsh)."
+  fi
+}
+
 # Debian/Ubuntu ship a neovim far too old for the LazyVim config in
 # .config/nvim (Ubuntu 24.04 is 0.9.5, Debian 12 is 0.7.2; LazyVim's health
 # check hard-errors below 0.11.2), so take the upstream release instead of the
@@ -560,8 +649,9 @@ flatpak_override_for() {
 # check like an ordinary package — it has to decide whether it's needed before
 # deciding whether to add that repo. amd64-only upstream: Signal only ships an
 # amd64 apt build, so on arm64 boxen (Pi/Ampere/Asahi/UTM) don't even try.
-# On pacman/dnf Signal is a plain packaged app (AUR signal-desktop / Fedora
-# Copr), so it installs like anything else.
+# On pacman/dnf/zypper Signal is not in the official repos (AUR / Copr /
+# third-party repo respectively), so it's skipped with a warning rather than
+# installed.
 install_signal() {
   # Flatpak-override check is apt-only, matching install_manifest.
   if [ "$PM" = "apt" ]; then
@@ -586,7 +676,7 @@ install_signal() {
     return
   fi
 
-  # pacman/dnf: package-manager install, with the package name in the
+  # pacman/dnf/zypper: package-manager install, with the package name in the
   # distro-specific desktop manifest (pacman-packages-desktop.txt /
   # dnf-packages-desktop.txt), so just delegate.
   if pm_has_candidate signal-desktop; then
@@ -732,6 +822,10 @@ install_linux() {
     elif [ "$PM" = "pacman" ]; then
       # Arch ships python, but pipx is a separate package (topgrade fallback).
       pm_install python-pipx || true
+    elif [ "$PM" = "zypper" ]; then
+      # openSUSE's pipx package is python3-pipx (a meta resolving to the
+      # default-Python versioned package, e.g. python313-pipx on Tumbleweed).
+      pm_install python3 python3-pip python3-pipx || true
     fi
   fi
 
@@ -768,7 +862,8 @@ install_linux() {
 PM="$(detect_os)"
 case "$PM" in
   mac)        install_mac ;;
-  apt|pacman|dnf) install_linux ;;
+  bazzite)    install_bazzite ;;
+  apt|pacman|dnf|zypper) install_linux ;;
   *)
     # Still do the platform-independent part rather than skipping everything.
     echo "Unrecognized OS/package manager — skipping package installation." >&2

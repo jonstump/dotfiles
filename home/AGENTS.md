@@ -126,12 +126,18 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
   explain *why* a previous bug happened and *why* the fix is the way it is).
   Preserve this style; the comments are load-bearing context for the next agent.
 - All `uname`/PATH guards exist because the same repo must work on macOS and
-  multiple Linux families (apt `bat`→`batcat`, `fd`→`fdfind`; Arch/Fedora keep
-  the standard names). Any new install step must handle all of them.
+  multiple Linux families (apt `bat`→`batcat`, `fd`→`fdfind`; Arch/Fedora/
+  openSUSE keep the standard names). Any new install step must handle all of
+  them.
 - Linux packages live in per-package-manager manifests (`apt-packages.txt`,
-  `pacman-packages.txt`, `dnf-packages.txt`), selected in `install.sh` by
-  `$PM` (`apt`/`pacman`/`dnf`). Any new install step that needs a package must
-  add it to each manifest with the correct name for that manager.
+  `pacman-packages.txt`, `dnf-packages.txt`, `zypper-packages.txt`), selected
+  in `install.sh` by `$PM` (`apt`/`pacman`/`dnf`/`zypper`). Any new install
+  step that needs a package must add it to each manifest with the correct
+  name for that manager (names often differ — e.g. openSUSE uses `fd`,
+  `ImageMagick`, `libopenssl-devel`, `sqlite3-devel`).
+- Bazzite is a separate `$PM` (`bazzite`) detected via `ID=bazzite` in
+  `/etc/os-release` before the dnf check; it installs via the shared Brewfile
+  (Linuxbrew) instead of a manifest, and skips `chsh`.
 - `$HOME/.local/bin` is on PATH in `.zshrc` and used by Debian symlink fixes and
   custom helpers (e.g. `lazy-tmux`).
 - Style: 2-space indentation and 120-col line length in Lua (stylua); shell files

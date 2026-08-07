@@ -37,14 +37,6 @@ ensure_git() {
       sudo pacman -Syu --noconfirm git
     elif command -v zypper >/dev/null 2>&1; then
       sudo zypper --non-interactive install git
-      # git still gets bootstrapped so chezmoi can clone/apply, but
-      # install.sh doesn't install packages on openSUSE — only on
-      # Debian/Ubuntu-family (apt), Arch (pacman), Fedora (dnf) and macOS
-      # (Homebrew). Set expectations before the user runs it.
-      echo "Note: this repo's install.sh only installs packages on" >&2
-      echo "Debian/Ubuntu-family, Arch and Fedora (macOS uses Homebrew)." >&2
-      echo "On openSUSE it will only set up oh-my-tmux and antidote —" >&2
-      echo "install the rest yourself." >&2
     else
       echo "No known package manager found. Install git yourself" >&2
       echo "and re-run this script." >&2
