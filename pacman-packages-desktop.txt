@@ -1,0 +1,29 @@
+# Desktop/GUI packages for Arch and Arch-based distros. Same format as
+# pacman-packages.txt (one package per line, '#' comments allowed).
+#
+# install.sh only installs these when it detects a display environment
+# ($DISPLAY/$WAYLAND_DISPLAY, or /usr/share/{x,wayland}sessions). Force it
+# either way with DOTFILES_DESKTOP=1 / DOTFILES_DESKTOP=0.
+#
+# Like pacman-packages.txt, this is best-effort: anything unavailable on the
+# running distro is reported and skipped rather than failing the install.
+#
+# Note: AUR packages (e.g. signal-desktop-git) are not installed by
+# install.sh; only official repo packages can go here.
+
+# GPU-based terminal emulator
+kitty
+
+# .zshrc exports OPENER=xdg-open and .config/lf/lfrc uses it, but xdg-open is
+# absent from a stock system — so opening any non-text file in lf silently did
+# nothing (lfrc sends stderr to /dev/null).
+xdg-utils
+
+# Neovim shells out to these for "+y / "+p on Linux, so LazyVim's clipboard
+# integration fails without one. Installing both X11 and Wayland is harmless.
+xclip
+wl-clipboard
+
+# Signal (instant messaging) is installed by install_signal() in install.sh,
+# not listed here — on Arch it's an AUR package, which install.sh doesn't
+# install. Install signal-desktop from the AUR yourself if you want it.
