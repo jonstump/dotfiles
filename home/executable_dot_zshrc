@@ -26,9 +26,9 @@ elif [ -n "$IS_MAC" ] && [ -s "${HOMEBREW_PREFIX:-}/opt/nvm/nvm.sh" ]; then
   [ -s "${HOMEBREW_PREFIX}/opt/nvm/etc/bash_completion.d/nvm" ] && . "${HOMEBREW_PREFIX}/opt/nvm/etc/bash_completion.d/nvm"
 fi
 
-# powerlevel10k. Homebrew's formula is next; on Debian/Ubuntu, where p10k
-# isn't reliably packaged, nothing matches and antidote loads it from
-# .zsh_plugins.p10k.txt below.
+# powerlevel10k. Homebrew's formula is next; on Linux, where p10k isn't
+# reliably packaged (and is absent from Debian/Ubuntu's repos), nothing
+# matches and antidote loads it from .zsh_plugins.p10k.txt below.
 _p10k_theme=""
 for _candidate in \
   "${HOMEBREW_PREFIX:-}/share/powerlevel10k/powerlevel10k.zsh-theme"

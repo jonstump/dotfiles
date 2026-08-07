@@ -25,11 +25,64 @@ detect_os() {
 
   if command -v apt-get >/dev/null 2>&1; then
     echo "apt"
+  elif command -v pacman >/dev/null 2>&1; then
+    echo "pacman"
+  elif command -v dnf >/dev/null 2>&1; then
+    echo "dnf"
   else
     echo "unknown"
   fi
 }
 
+# The global package manager in use on this run ("apt" | "pacman" | "dnf").
+# Set by install_linux() before any per-tool install runs. The tool installs
+# below (lazygit/topgrade/zsh/signal) consult it to decide whether to use the
+# distro package or fall back to an upstream installer.
+PM=""
+
+# Refreshes the package index. Each manager needs a different invocation (apt
+# must run before installing; pacman can install directly; dnf uses -y).
+pm_update() {
+  case "$PM" in
+    apt)    apt_update ;;
+    pacman) sudo pacman -Sy --noconfirm ;;
+    dnf)    sudo dnf check-update >/dev/null 2>&1 || true ;;
+  esac
+}
+
+# Installs $@ as packages, best-effort: failures warn and continue rather than
+# aborting the whole installer (set -e is on). Returns the success/failure of
+# the batch so callers that need it can react.
+pm_install() {
+  case "$PM" in
+    apt)
+      if ! sudo apt-get install -y "$@"; then
+        echo "WARNING: apt install failed for: $*" >&2
+        return 1
+      fi
+      ;;
+    pacman)
+      if ! sudo pacman -S --noconfirm --needed "$@"; then
+        echo "WARNING: pacman install failed for: $*" >&2
+        return 1
+      fi
+      ;;
+    dnf)
+      if ! sudo dnf install -y "$@"; then
+        echo "WARNING: dnf install failed for: $*" >&2
+        return 1
+      fi
+      ;;
+  esac
+}
+
+# True if the current package manager has an installable candidate for $1 on
+# this machine. Package sets vary by distro and drift over time even on one
+# distro (e.g. lazygit landed in Debian testing after this script first
+# needed the upstream fallback below), and this repo's package path isn't
+# limited to one distro's archive — so check at run time instead of hardcoding
+# "not packaged" and letting that guess go stale or wrong. Also safe to call
+# from the mac path, where no distro package manager exists at all.
 # Renames $1 aside with a timestamp suffix instead of deleting it — mirrors
 # upstream oh-my-tmux's own install.sh, which never destroys existing state,
 # only backs it up before replacing it.
@@ -73,24 +126,37 @@ install_oh_my_tmux() {
   fi
 }
 
-# True if apt has an installable candidate for $1 on this machine. Package
-# sets vary by distro and drift over time even on one distro (e.g. lazygit
-# landed in Debian testing after this script first needed the upstream
-# fallback below), and this repo's apt path isn't limited to one distro's
-# archive — so check apt at run time instead of hardcoding "not packaged" and
+# True if the current package manager has an installable candidate for $1.
+# Package sets vary by distro and drift over time even on one distro (e.g.
+# lazygit landed in Debian testing after this script first needed the upstream
+# fallback below), and this repo's package path isn't limited to one distro's
+# archive — so check at run time instead of hardcoding "not packaged" and
 # letting that guess go stale or wrong. Also safe to call from the mac path,
-# where apt-cache doesn't exist at all.
-apt_has_candidate() {
-  command -v apt-cache >/dev/null 2>&1 || return 1
-  local candidate
-  candidate="$(apt-cache policy "$1" 2>/dev/null | awk -F': ' '/Candidate:/{print $2; exit}')"
-  [ -n "$candidate" ] && [ "$candidate" != "(none)" ]
+# where no distro package manager exists at all.
+pm_has_candidate() {
+  case "$PM" in
+    apt)
+      command -v apt-cache >/dev/null 2>&1 || return 1
+      local candidate
+      candidate="$(apt-cache policy "$1" 2>/dev/null | awk -F': ' '/Candidate:/{print $2; exit}')"
+      [ -n "$candidate" ] && [ "$candidate" != "(none)" ]
+      ;;
+    pacman)
+      pacman -Si "$1" >/dev/null 2>&1
+      ;;
+    dnf)
+      dnf list available "$1" >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 # zsh plugin manager, replacing antigen (#26). Cloned rather than installed as
 # a package because it's pure zsh and apt has no version of it across the
 # releases this repo targets, so one mechanism covers both platforms.
-# Not apt_has_candidate-checked like lazygit/topgrade below: .zshrc discovers
+# Not pm_has_candidate-checked like lazygit/topgrade below: .zshrc discovers
 # antidote by checking a fixed list of paths (Homebrew, or this clone at
 # ~/.antidote), not via `command -v`, so an apt package landing anywhere else
 # would silently go unused instead of being picked up.
@@ -117,7 +183,7 @@ install_antidote() {
   fi
 }
 
-# Not apt_has_candidate-checked: .zshrc only sources nvm from $HOME/.nvm/nvm.sh
+# Not pm_has_candidate-checked: .zshrc only sources nvm from $HOME/.nvm/nvm.sh
 # (or the Homebrew formula's path on Mac), never from `command -v nvm`, so an
 # apt package wouldn't land where .zshrc looks and would silently go unused.
 install_nvm() {
@@ -182,14 +248,14 @@ github_latest_version() {
 }
 
 # LazyVim's health check looks for lazygit. Not in the Debian/Ubuntu archive
-# as of writing, but apt_has_candidate re-checks in case that has changed.
+# as of writing, but pm_has_candidate re-checks in case that has changed.
 install_lazygit() {
   command -v lazygit >/dev/null 2>&1 && return
 
-  if apt_has_candidate lazygit; then
-    echo "Installing lazygit (apt)"
-    sudo apt-get install -y lazygit || \
-      echo "WARNING: lazygit (apt) install failed; continuing with the rest of the setup." >&2
+  if pm_has_candidate lazygit; then
+    echo "Installing lazygit (package)"
+    pm_install lazygit || \
+      echo "WARNING: lazygit (package) install failed; continuing with the rest of the setup." >&2
     return
   fi
 
@@ -224,7 +290,42 @@ install_lazygit() {
   rm -rf "$tmp"
 }
 
-# Not apt_has_candidate-checked: .zprofile hardcodes PYENV_ROOT to
+# lf ships in the Debian/Ubuntu and Arch archives, but is NOT in Fedora's
+# official repos (only a third-party COPR). We install it via the manifest on
+# apt/pacman; on dnf grab the upstream release tarball, which extracts to a
+# single static binary named `lf`.
+install_lf() {
+  command -v lf >/dev/null 2>&1 && return
+
+  # apt/pacman install it from the manifest, so only the upstream fallback
+  # (Fedora here, or any other dnf distro missing it) reaches this body.
+  if [ "$PM" = "dnf" ]; then
+    local machine target
+    machine="$(uname -m)"
+    case "$machine" in
+      x86_64|amd64)  target="amd64" ;;
+      aarch64|arm64) target="arm64" ;;
+      *)
+        echo "No upstream lf build for $machine — skipping." >&2
+        return
+        ;;
+    esac
+
+    echo "Installing lf ($target, upstream release)"
+    local tmp
+    tmp="$(mktemp -d)"
+    if curl -fsSL "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-${target}.tar.gz" \
+         | tar -xz -C "$tmp" lf; then
+      mkdir -p "$HOME/.local/bin"
+      install -m 0755 "$tmp/lf" "$HOME/.local/bin/lf"
+    else
+      echo "WARNING: lf download failed; skipping." >&2
+    fi
+    rm -rf "$tmp"
+  fi
+}
+
+# Not pm_has_candidate-checked: .zprofile hardcodes PYENV_ROOT to
 # $HOME/.pyenv and only puts $PYENV_ROOT/bin on PATH, so an apt-installed
 # pyenv landing in a system location wouldn't be found there and pyenv init
 # would silently stay dead.
@@ -235,44 +336,49 @@ install_pyenv() {
   fi
 }
 
-# README.md points at topgrade for updates and apt-packages.txt claims
-# install.sh installs it — but nothing did, and as of writing it isn't
-# packaged for Debian/Ubuntu (macOS was always fine; it's in the Brewfile), so
-# check apt first and fall back to pipx. topgrade-rs publishes to PyPI, and
-# pipx is already in apt-packages.txt, so that's simpler than fetching and
-# unpacking the release tarball per-arch.
+# README.md points at topgrade for updates and the manifests claim install.sh
+# installs it — but it isn't packaged everywhere (as of writing, not reliably
+# for Debian/Ubuntu; macOS was always fine, it's in the Brewfile), so check the
+# package manager first and fall back to pipx. topgrade-rs publishes to PyPI,
+# and pipx is bootstrapped on each PM path (in the manifests / bootstrap
+# step), so that's simpler than fetching and unpacking the release tarball
+# per-arch.
 install_topgrade() {
   command -v topgrade >/dev/null 2>&1 && return
 
-  if apt_has_candidate topgrade; then
-    echo "Installing topgrade (apt)"
-    sudo apt-get install -y topgrade || \
-      echo "WARNING: topgrade (apt) install failed; continuing with the rest of the setup." >&2
+  if pm_has_candidate topgrade; then
+    echo "Installing topgrade (package)"
+    pm_install topgrade || \
+      echo "WARNING: topgrade (package) install failed; continuing with the rest of the setup." >&2
     return
   fi
 
   echo "Installing topgrade (pipx)"
-  pipx install topgrade
+  if command -v pipx >/dev/null 2>&1; then
+    pipx install topgrade
+  else
+    echo "WARNING: pipx not available; skipping topgrade." >&2
+  fi
 }
 
 # zsh is normally in every Debian/Ubuntu archive, but a derivative distro's
 # sources.list can omit the component that carries it (or only ship its own
-# overlay repo) — apt_has_candidate re-checks so this only builds from source
-# when apt genuinely has no candidate, not just a stale index. The upstream
-# release tarball (unlike a raw git checkout) ships a pre-generated
-# ./configure, so this only needs a C compiler and ncurses headers — both
-# already pulled in by apt-packages.txt (build-essential, libncursesw5-dev).
+# overlay repo) — pm_has_candidate re-checks so this only builds from source
+# when the package manager genuinely has no candidate, not just a stale index.
+# The upstream release tarball (unlike a raw git checkout) ships a
+# pre-generated ./configure, so this only needs a C compiler and ncurses
+# headers — build-essential and libncursesw5-dev from apt-packages.txt.
 install_zsh() {
   command -v zsh >/dev/null 2>&1 && return
 
-  if apt_has_candidate zsh; then
-    echo "Installing zsh (apt)"
-    sudo apt-get install -y zsh || \
-      echo "WARNING: zsh (apt) install failed; continuing with the rest of the setup." >&2
+  if pm_has_candidate zsh; then
+    echo "Installing zsh (package)"
+    pm_install zsh || \
+      echo "WARNING: zsh (package) install failed; continuing with the rest of the setup." >&2
     return
   fi
 
-  echo "zsh not found via apt — building from source (upstream release tarball)."
+  echo "zsh not found via the package manager — building from source (upstream release tarball)."
   local tmp
   tmp="$(mktemp -d)"
   if curl -fsSL -o "$tmp/zsh-src.tar" "https://sourceforge.net/projects/zsh/files/latest/download" \
@@ -443,29 +549,45 @@ flatpak_override_for() {
   ' "$file"
 }
 
-# Signal needs its own apt repo before it can be installed at all, so it can't
-# go through apt_install_manifest's generic Flatpak-override check below like
-# an ordinary package — it has to decide whether it's needed before deciding
-# whether to add that repo. amd64-only: Signal only publishes an amd64 apt
-# build, so don't even add the repo on a Pi/Ampere/Asahi/UTM arm64 box.
+# Signal needs its own apt repo before it can be installed at all (Debian
+# family), so it can't go through install_manifest's generic Flatpak-override
+# check like an ordinary package — it has to decide whether it's needed before
+# deciding whether to add that repo. amd64-only upstream: Signal only ships an
+# amd64 apt build, so on arm64 boxen (Pi/Ampere/Asahi/UTM) don't even try.
+# On pacman/dnf Signal is a plain packaged app (AUR signal-desktop / Fedora
+# Copr), so it installs like anything else.
 install_signal() {
-  [ "$(dpkg --print-architecture)" = "amd64" ] || return 0
-  dpkg -s signal-desktop >/dev/null 2>&1 && return 0
+  # Flatpak-override check is apt-only, matching install_manifest.
+  if [ "$PM" = "apt" ]; then
+    [ "$(dpkg --print-architecture)" = "amd64" ] || return 0
+    dpkg -s signal-desktop >/dev/null 2>&1 && return 0
 
-  local flatpak_id
-  if flatpak_id="$(flatpak_override_for signal-desktop)" && flatpak_installed "$flatpak_id"; then
-    echo "Skipping signal-desktop — already installed via Flatpak ($flatpak_id)."
-    return 0
+    local flatpak_id
+    if flatpak_id="$(flatpak_override_for signal-desktop)" && flatpak_installed "$flatpak_id"; then
+      echo "Skipping signal-desktop — already installed via Flatpak ($flatpak_id)."
+      return 0
+    fi
+
+    if add_apt_repo signal-desktop \
+      "https://updates.signal.org/desktop/apt/keys.asc" \
+      "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"; then
+      apt_update
+      sudo apt-get install -y signal-desktop || \
+        echo "WARNING: signal-desktop install failed; continuing with the rest of the setup." >&2
+    else
+      echo "WARNING: skipping signal-desktop (no apt repo added)." >&2
+    fi
+    return
   fi
 
-  if add_apt_repo signal-desktop \
-    "https://updates.signal.org/desktop/apt/keys.asc" \
-    "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"; then
-    apt_update
-    sudo apt-get install -y signal-desktop || \
+  # pacman/dnf: package-manager install, with the package name in the
+  # distro-specific desktop manifest (pacman-packages-desktop.txt /
+  # dnf-packages-desktop.txt), so just delegate.
+  if pm_has_candidate signal-desktop; then
+    pm_install signal-desktop || \
       echo "WARNING: signal-desktop install failed; continuing with the rest of the setup." >&2
   else
-    echo "WARNING: skipping signal-desktop (no apt repo added)." >&2
+    echo "signal-desktop not packaged on this distro; skipping." >&2
   fi
 }
 
@@ -493,11 +615,13 @@ apt_update() {
   fi
 }
 
-# apt is all-or-nothing: one unresolvable name means nothing gets installed,
-# and `set -e` would then kill the rest of the installer. The manifests are
-# explicitly best-effort (names vary by distro/release), so try the fast batch
-# path first and fall back to per-package on failure.
-apt_install_manifest() {
+# Package manifests are all-or-nothing: one unresolvable name means nothing
+# gets installed, and `set -e` would then kill the rest of the installer. The
+# manifests are explicitly best-effort (names vary by distro/release), so try
+# the fast batch path first and fall back to per-package on failure. The
+# Flatpak-override check is apt-only (Fedora/Arch users manage Flatpaks
+# themselves and those manifests don't map to a shared file).
+install_manifest() {
   local file="$1"
   [ -f "$file" ] || return 0
 
@@ -505,20 +629,22 @@ apt_install_manifest() {
   [ "${#PKGS[@]}" -gt 0 ] || return 0
 
   local pkg flatpak_id filtered=()
-  for pkg in "${PKGS[@]}"; do
-    if flatpak_id="$(flatpak_override_for "$pkg")" && flatpak_installed "$flatpak_id"; then
-      echo "Skipping $pkg — already installed via Flatpak ($flatpak_id)."
-      continue
-    fi
-    filtered+=("$pkg")
-  done
-  PKGS=("${filtered[@]}")
-  [ "${#PKGS[@]}" -gt 0 ] || return 0
+  if [ "$PM" = "apt" ]; then
+    for pkg in "${PKGS[@]}"; do
+      if flatpak_id="$(flatpak_override_for "$pkg")" && flatpak_installed "$flatpak_id"; then
+        echo "Skipping $pkg — already installed via Flatpak ($flatpak_id)."
+        continue
+      fi
+      filtered+=("$pkg")
+    done
+    PKGS=("${filtered[@]}")
+    [ "${#PKGS[@]}" -gt 0 ] || return 0
+  fi
 
-  if ! sudo apt-get install -y "${PKGS[@]}"; then
+  if ! pm_install "${PKGS[@]}"; then
     echo "Batch install of $(basename "$file") failed; retrying package-by-package." >&2
     for pkg in "${PKGS[@]}"; do
-      sudo apt-get install -y "$pkg" || echo "SKIP (unavailable): $pkg" >&2
+      pm_install "$pkg" || echo "SKIP (unavailable): $pkg" >&2
     done
   fi
 }
@@ -566,32 +692,56 @@ set_login_shell() {
   sudo chsh -s "$zsh_path" "$target_user"
 }
 
-install_apt() {
+install_linux() {
   if ! command -v sudo >/dev/null 2>&1; then
-    echo "sudo is required for the apt install path. Install it (or run as a" >&2
-    echo "user in the sudo group) and re-run this script." >&2
+    echo "sudo is required for the package install path. Install it (or run as" >&2
+    echo "a user in the sudo group) and re-run this script." >&2
     exit 1
   fi
   export DEBIAN_FRONTEND=noninteractive
 
-  # add_apt_repo needs curl and gpg, and neither is guaranteed on a minimal
-  # Debian image — bootstrap them before adding any repo.
-  apt_update
-  sudo apt-get install -y curl gnupg ca-certificates || \
-    echo "WARNING: curl/gnupg/ca-certificates install failed; add_apt_repo calls" \
-      "below may fail as a result. Continuing with the rest of the setup." >&2
+  # The manifests live next to install.sh, one per package manager, named
+  # <pm>-packages.txt and <pm>-packages-desktop.txt.
+  local packages_file="$SCRIPT_DIR/${PM}-packages.txt"
+  local desktop_file="$SCRIPT_DIR/${PM}-packages-desktop.txt"
 
-  apt_install_manifest "$SCRIPT_DIR/apt-packages.txt"
+  # add_apt_repo needs curl and gpg, and neither is guaranteed on a minimal
+  # Debian image — bootstrap them before adding any repo. Similarly, several
+  # installs below need curl/tar/unzip; make sure curl and the basics exist
+  # on every Linux PM path.
+  pm_update
+  if [ "$PM" = "apt" ]; then
+    sudo apt-get install -y curl gnupg ca-certificates tar unzip || \
+      echo "WARNING: curl/gnupg/ca-certificates install failed; add_apt_repo calls" \
+        "below may fail as a result. Continuing with the rest of the setup." >&2
+  else
+    # curl/tar are bootstrap-needed for the upstream installers below too.
+    # pacman/dnf pull these in as deps of other things typically, but be
+    # explicit. (unzip for Nerd Font, tar for tarball extraction.)
+    pm_install curl tar unzip || \
+      echo "WARNING: curl/tar/unzip install failed; some installs may fail." >&2
+    if [ "$PM" = "dnf" ]; then
+      # Fedora core ships python3 but not pip; pipx is the topgrade fallback.
+      pm_install python3 python3-pip pipx || true
+    elif [ "$PM" = "pacman" ]; then
+      # Arch ships python, but pipx is a separate package (topgrade fallback).
+      pm_install python-pipx || true
+    fi
+  fi
+
+  install_manifest "$packages_file"
 
   if want_desktop_packages; then
-    apt_install_manifest "$SCRIPT_DIR/apt-packages-desktop.txt"
+    install_manifest "$desktop_file"
     install_signal
   else
-    echo "No display environment detected — skipping apt-packages-desktop.txt."
+    echo "No display environment detected — skipping ${PM}-packages-desktop.txt."
     echo "(Set DOTFILES_DESKTOP=1 to install them anyway.)"
   fi
 
-  link_debian_renamed_bins
+  if [ "$PM" = "apt" ]; then
+    link_debian_renamed_bins
+  fi
   install_neovim
   install_lazygit
   install_topgrade
@@ -600,6 +750,7 @@ install_apt() {
   install_pyenv
   install_oh_my_tmux
   install_antidote
+  install_lf
 
   if want_desktop_packages; then
     install_nerd_font
@@ -608,9 +759,10 @@ install_apt() {
   set_login_shell
 }
 
-case "$(detect_os)" in
+PM="$(detect_os)"
+case "$PM" in
   mac)        install_mac ;;
-  apt)        install_apt ;;
+  apt|pacman|dnf) install_linux ;;
   *)
     # Still do the platform-independent part rather than skipping everything.
     echo "Unrecognized OS/package manager — skipping package installation." >&2
