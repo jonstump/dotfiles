@@ -46,7 +46,7 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 - Plugin list: `dot_zsh_plugins.txt` (loads via `antidote load`), theme is
   deliberately **not** there — see `dot_zsh_plugins.p10k.txt`, a fallback loaded
   only when no natively packaged powerlevel10k is found (Homebrew first, then
-  Debian/Ubuntu falls back to this file).
+  the Linux package managers' powerlevel10k or the fallback file).
 - Edits to the bundles file regenerate the static cache on the next new shell;
   use `antidote update` to update plugins (OMZ's own updater is disabled via
   `zstyle ':omz:update' mode disabled`).
@@ -123,8 +123,12 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
   explain *why* a previous bug happened and *why* the fix is the way it is).
   Preserve this style; the comments are load-bearing context for the next agent.
 - All `uname`/PATH guards exist because the same repo must work on macOS and
-  Debian/Ubuntu (apt `bat`→`batcat`, `fd`→`fdfind`). Any new install step must
-  handle both.
+  multiple Linux families (apt `bat`→`batcat`, `fd`→`fdfind`; Arch/Fedora keep
+  the standard names). Any new install step must handle all of them.
+- Linux packages live in per-package-manager manifests (`apt-packages.txt`,
+  `pacman-packages.txt`, `dnf-packages.txt`), selected in `install.sh` by
+  `$PM` (`apt`/`pacman`/`dnf`). Any new install step that needs a package must
+  add it to each manifest with the correct name for that manager.
 - `$HOME/.local/bin` is on PATH in `.zshrc` and used by Debian symlink fixes and
   custom helpers (e.g. `lazy-tmux`).
 - Style: 2-space indentation and 120-col line length in Lua (stylua); shell files

@@ -1,0 +1,76 @@
+# Native-repo packages for Fedora and Fedora-family Linux (RHEL derivatives
+# may differ), installed by install.sh via `dnf install`. One package per
+# line, '#' comments allowed.
+#
+# This is a starting core set, not a full mirror of Brewfile — package names
+# and availability vary by distro/release, so verify with `dnf search`
+# on the actual box before assuming something here is right. Tools without a
+# reliable native package (neovim, pyenv, nvm, topgrade, lazygit, oh-my-tmux,
+# zsh, lf) are installed separately by install.sh via their own upstream
+# installers.
+#
+# Desktop/GUI apps live in dnf-packages-desktop.txt instead, so a headless
+# box doesn't get them.
+
+# build tools needed by pyenv/source builds
+gcc
+make
+cmake
+git
+curl
+wget
+tmux
+
+# Needed by install.sh itself for upstream installers below.
+# unzip — Nerd Font step; tar — tarball extraction
+unzip
+tar
+
+# Needed by things this repo actually ships:
+# PackageKit-command-not-found — dnf's command-not-found hook, which the
+#                                oh-my-zsh plugin uses on Fedora
+# fontconfig                    — fc-cache, after the font install
+PackageKit-command-not-found
+fontconfig
+
+# CLI utilities
+htop
+btop
+tree
+jq
+ripgrep
+fd-find
+fzf
+the_silver_searcher
+bat
+git-delta
+imagemagick
+mosh
+nmap
+syncthing
+wireguard-tools
+ansible-core
+# file — `file --mime-type` in .config/lf/lfrc; part of Fedora's
+# filesystem/base set usually, but be explicit.
+file
+
+# Languages / toolchains (base interpreters only — pyenv manages versions)
+python3
+python3-pip
+pipx
+
+# Build dependencies for `pyenv install <version>` — pyenv compiles CPython
+# from source, and without these the build fails or silently produces an
+# interpreter with no ssl/readline/sqlite support.
+# Note: Fedora has no liblzma-devel; xz-devel provides the liblzma dev files.
+openssl-devel
+zlib-devel
+bzip2-devel
+readline-devel
+sqlite-devel
+ncurses-devel
+xz-devel
+tk-devel
+libxml2-devel
+xmlsec1-devel
+libffi-devel

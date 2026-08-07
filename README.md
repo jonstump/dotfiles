@@ -1,8 +1,8 @@
 # dotfiles
 
-Personal dotfiles for macOS and Debian/Ubuntu-family Linux (PikaOS, etc.).
-Managed with [chezmoi](https://www.chezmoi.io/): this repo is
-chezmoi's *source* directory, applied on top of `$HOME` rather than
+Personal dotfiles for macOS, Debian/Ubuntu-family Linux (PikaOS, etc.), Arch
+Linux, and Fedora. Managed with [chezmoi](https://www.chezmoi.io/): this repo
+is chezmoi's *source* directory, applied on top of `$HOME` rather than
 symlinked or checked out directly onto it.
 
 The chezmoi source state lives under `home/` (see `.chezmoiroot`) so that
@@ -75,6 +75,21 @@ $(chezmoi source-path)/../install.sh
     `DOTFILES_DESKTOP=1` / `DOTFILES_DESKTOP=0`.
   - Your login shell is switched to zsh only if it's listed in `/etc/shells`;
     otherwise it says so and moves on.
+- **Arch Linux (pacman)**: installs everything in `pacman-packages.txt`
+  (official repo only — AUR packages are not installed by `install.sh`).
+  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` come from
+  their upstream installers (same as apt), and `zsh` is pacman-installed (it
+  isn't missing from Arch's repo). GUI apps live in
+  `pacman-packages-desktop.txt` (same `want_desktop_packages` gate). Signal is
+  an AUR package, so it isn't installed at all on Arch — install it yourself.
+- **Fedora (dnf)**: installs everything in `dnf-packages.txt`, and
+  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` come from
+  their upstream installers. `zsh` is dnf-installed. GUI apps live in
+  `dnf-packages-desktop.txt`. Signal needs an external Copr repo that
+  `install.sh` doesn't add — install it yourself.
+- **openSUSE (zypper)**: `bootstrap.sh` will still get git installed and
+  `chezmoi apply` will work, but `install.sh` doesn't install packages on it
+  (only oh-my-tmux and antidote).
 
 `install.sh` is safe to re-run; every step checks whether its target already
 exists before doing anything.
@@ -124,8 +139,9 @@ no equivalent of `config add -A` to avoid.
 
 Updates to installed tools are handled by [`topgrade`](https://github.com/topgrade-rs/topgrade)
 rather than a dotfiles alias — run `topgrade` directly. It comes from the
-Brewfile on macOS; on Linux `install.sh` installs it with `pipx`, since it
-isn't packaged for Debian/Ubuntu.
+Brewfile on macOS; on Linux `install.sh` installs it via the package manager
+when available (Fedora/Arch package it, Debian/Ubuntu largely don't), falling
+back to `pipx` on Debian/Ubuntu.
 
 ## What's here
 
@@ -144,7 +160,6 @@ in `home/` (e.g. `~/.zshrc` is `home/executable_dot_zshrc`).
 | `.config/lf/lfrc` | [lf](https://github.com/gokcehan/lf) file manager config. |
 | `.zsh_plugins.txt` | zsh plugin bundles, loaded by [antidote](https://github.com/mattmc3/antidote). Edit and open a new shell — the static cache under `~/.cache/antidote/` rebuilds itself; run `antidote update` to update the plugins. |
 | `.zsh_plugins.p10k.txt` | Fallback powerlevel10k, used only where no native package provides it (i.e. Debian/Ubuntu). |
-
 The rest of the repo lives outside `home/` (see `.chezmoiroot`), so chezmoi
 never deploys it into `$HOME` — these are read from the repo root, one level
 above `chezmoi source-path` (which `.chezmoiroot` points at `home/`), not
@@ -156,7 +171,11 @@ from `home/` itself:
 | `Brewfile` | macOS package manifest (`brew bundle --file=Brewfile`). |
 | `Brewfile.mas` | Mac App Store entries, split out — run by hand after signing in to the App Store. |
 | `apt-packages.txt` | Linux (apt) package manifest — a curated core set, not a full mirror of `Brewfile`; extend as needed per-distro. |
+| `pacman-packages.txt` | Linux (Arch/pacman) package manifest — official repo only, no AUR packages. |
+| `dnf-packages.txt` | Linux (Fedora/dnf) package manifest — curated core set, verify with `dnf search` per distro. |
 | `apt-packages-desktop.txt` | Linux (apt) GUI/desktop packages, installed only when a display environment is detected. |
+| `pacman-packages-desktop.txt` | Linux (Arch) GUI/desktop packages, same display gate. |
+| `dnf-packages-desktop.txt` | Linux (Fedora) GUI/desktop packages, same display gate. |
 | `apt-flatpak-overrides.txt` | Maps an apt package to a Flatpak application ID; `install.sh` skips apt-installing a package if its mapped Flatpak is already present. Add a line to avoid double-installing an app you manage via Flatpak. |
 | `bootstrap.sh` | One-time chezmoi install + init/apply for a brand new machine. |
 | `install.sh` | OS-detecting package/tool installer, run after `bootstrap.sh`. |
