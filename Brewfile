@@ -49,6 +49,11 @@ brew "bison"
 # GNU database manager
 brew "gdbm"
 # Interpreted, interactive, object-oriented programming language
+# python@3.10 reaches upstream EOL ~Oct 2026; Homebrew tends to retire formulae
+# for EOL Pythons shortly after, which would make this line start failing
+# `brew bundle install`. That failure is already non-fatal (install_mac wraps
+# it in a soft-fail guard), but bump to a supported version when it happens.
+# (pyenv, not this formula, manages the Python versions you actually use.)
 brew "python@3.10"
 # Linux/OSX/FreeBSD resource monitor
 brew "bpytop"
@@ -254,6 +259,11 @@ cask "kodi"
 # Cable-free audio router
 cask "loopback"
 # File system integration
+# macFUSE ships a kernel extension that macOS requires you to approve manually
+# in System Settings → Privacy & Security (then reboot) before it loads; on
+# Apple Silicon some macOS versions additionally need Reduced Security mode
+# from Recovery. `brew bundle` reports success either way, so FUSE tooling
+# will silently not work until you approve it.
 cask "macfuse"
 # Desktop client for the Matrix protocol
 cask "nheko"
