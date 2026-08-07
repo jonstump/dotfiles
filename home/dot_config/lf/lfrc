@@ -18,15 +18,22 @@ set icons true
 # stderr so a missing `file` degrades predictably: everything falls into
 # the `*)` opener branch instead of printing an error and doing weird
 # things on every open.
+# `OPENER` is only exported by .zshrc, so lf launched from a desktop
+# launcher, a script, or a non-interactive shell (tmux run-shell /
+# display-popup -E) gets OPENER="" and every non-text open silently does
+# nothing. Resolve a per-OS default here instead of trusting the
+# environment: xdg-open on Linux, `open` on macOS.
 cmd open ${{
     test -L $f && f=$(readlink -f $f)
+    opener=${OPENER:-}
+    [ -n "$opener" ] || opener=$(command -v xdg-open >/dev/null 2>&1 && echo xdg-open || echo open)
     case $(file --mime-type "$f" -b 2>/dev/null) in
         text/*) $EDITOR $fx;;
         *)  for target in $fx; do
                 if command -v setsid >/dev/null 2>&1; then
-                    setsid -f $OPENER "$target" >/dev/null 2>&1
+                    setsid -f $opener "$target" >/dev/null 2>&1
                 else
-                    $OPENER "$target" >/dev/null 2>&1 &
+                    $opener "$target" >/dev/null 2>&1 &
                 fi
             done;;
     esac
