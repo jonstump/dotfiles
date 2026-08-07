@@ -23,8 +23,11 @@ set icons true
 # display-popup -E) gets OPENER="" and every non-text open silently does
 # nothing. Resolve a per-OS default here instead of trusting the
 # environment: xdg-open on Linux, `open` on macOS.
+# `readlink -f` is GNU-only: macOS's BSD readlink has no -f. Prefer the
+# coreutils greadlink (Brewfile installs coreutils) when present, fall back
+# to GNU readlink on Linux, else leave the path untouched.
 cmd open ${{
-    test -L $f && f=$(readlink -f $f)
+    test -L $f && f=$(command -v greadlink >/dev/null 2>&1 && greadlink -f "$f" || readlink -f "$f" 2>/dev/null || printf '%s' "$f")
     opener=${OPENER:-}
     [ -n "$opener" ] || opener=$(command -v xdg-open >/dev/null 2>&1 && echo xdg-open || echo open)
     case $(file --mime-type "$f" -b 2>/dev/null) in
