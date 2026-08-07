@@ -1,0 +1,26 @@
+# Desktop/GUI packages for openSUSE. Same format as zypper-packages.txt
+# (one package per line, '#' comments allowed).
+#
+# install.sh only installs these when it detects a display environment
+# ($DISPLAY/$WAYLAND_DISPLAY, or /usr/share/{x,wayland}sessions). Force it
+# either way with DOTFILES_DESKTOP=1 / DOTFILES_DESKTOP=0.
+#
+# Like zypper-packages.txt, this is best-effort: anything unavailable on the
+# running distro is reported and skipped rather than failing the install.
+
+# GPU-based terminal emulator
+kitty
+
+# .zshrc exports OPENER=xdg-open and .config/lf/lfrc uses it, but xdg-open is
+# absent from a stock system — so opening any non-text file in lf silently did
+# nothing (lfrc sends stderr to /dev/null).
+xdg-utils
+
+# Neovim shells out to these for "+y / "+p on Linux, so LazyVim's clipboard
+# integration fails without one. Installing both X11 and Wayland is harmless.
+xclip
+wl-clipboard
+
+# Signal (instant messaging) is installed by install_signal() in install.sh,
+# not listed here — Signal isn't in openSUSE's official repos. Install it via
+# its third-party network repo or Flatpak yourself if you want it.

@@ -1,0 +1,79 @@
+# Native-repo packages for openSUSE (Leap and Tumbleweed), installed by
+# install.sh via `zypper --non-interactive install`. One package per line,
+# '#' comments allowed.
+#
+# This is a starting core set, not a full mirror of Brewfile — package names
+# and availability vary by distro/release (Leap uses Stable Release / backports,
+# Tumbleweed is rolling), so verify with `zypper search` on the actual box
+# before assuming something here is right. Tools without a reliable native
+# package (neovim, pyenv, nvm, topgrade, lazygit, oh-my-tmux, zsh,
+# powerlevel10k) are installed separately by install.sh via their own
+# upstream installers.
+#
+# Desktop/GUI apps live in zypper-packages-desktop.txt instead, so a headless
+# box doesn't get them.
+
+# Build tools needed by pyenv/source builds
+gcc
+make
+cmake
+git
+curl
+wget
+tmux
+lf
+
+# Needed by install.sh itself for upstream installers below.
+# unzip — Nerd Font step; tar — tarball extraction
+unzip
+tar
+
+# Needed by things this repo actually ships:
+# cnf  — openSUSE's command-not-found handler (Leap 15.x uses
+#        scout-command-not-found; cnf is Tumbleweed/Leap 16). The oh-my-zsh
+#        command-not-found plugin picks it up when present.
+# fontconfig — fc-cache, after the font install
+cnf
+fontconfig
+
+# CLI utilities
+htop
+btop
+tree
+jq
+ripgrep
+fd
+fzf
+the_silver_searcher
+bat
+git-delta
+ImageMagick
+mosh
+nmap
+syncthing
+wireguard-tools
+ansible
+topgrade
+# file — `file --mime-type` in .config/lf/lfrc; part of the base set usually,
+# list it explicitly since that isn't guaranteed on minimal installs.
+file
+
+# Languages / toolchains (base interpreters only — pyenv manages versions)
+python3
+python3-pip
+
+# Build dependencies for `pyenv install <version>` — pyenv compiles CPython
+# from source, and without these the build fails or silently produces an
+# interpreter with no ssl/readline/sqlite support.
+# Note: liblzma headers come from xz-devel; there is no liblzma-devel package.
+libopenssl-devel
+zlib-devel
+libbz2-devel
+readline-devel
+sqlite3-devel
+ncurses-devel
+xz-devel
+tk-devel
+libxml2-devel
+xmlsec1-devel
+libffi-devel
