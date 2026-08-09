@@ -62,8 +62,10 @@ $(chezmoi source-path)/../install.sh
 - **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo on amd64
   (modern `signed-by` keyring in `/etc/apt/keyrings`, not the deprecated
   `apt-key`), installs everything in `apt-packages.txt`, and installs
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` via their
-  own upstream installers since none of those are reliable apt packages
+  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit` via their own upstream
+  installers since none of those are reliable apt packages (oh-my-tmux and
+  antidote are chezmoi git-repo externals, applied by `chezmoi apply` before
+  this runs)
   (`topgrade` comes from PyPI via `pipx install topgrade`, using the `pipx`
   that apt already installed). Unavailable packages are reported and skipped
   rather than failing the install.
@@ -80,22 +82,24 @@ $(chezmoi source-path)/../install.sh
     otherwise it says so and moves on.
 - **Arch Linux (pacman)**: installs everything in `pacman-packages.txt`
   (official repo only — AUR packages are not installed by `install.sh`).
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` come from
-  their upstream installers (same as apt), and `zsh` is pacman-installed (it
+  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit` come from their upstream
+  installers (same as apt; oh-my-tmux/antidote are externals), and `zsh` is
+  pacman-installed (it
   isn't missing from Arch's repo). GUI apps live in
   `pacman-packages-desktop.txt` (same `want_desktop_packages` gate). Signal is
   an AUR package, so it isn't installed at all on Arch — install it yourself.
 - **Fedora (dnf)**: installs everything in `dnf-packages.txt`, and
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` come from
-  their upstream installers. `zsh` is dnf-installed. GUI apps live in
+  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit` come from their upstream
+  installers (oh-my-tmux/antidote are externals). `zsh` is dnf-installed. GUI apps live in
   `dnf-packages-desktop.txt`. Signal needs an external Copr repo that
   `install.sh` doesn't add — install it yourself.
 - **openSUSE (zypper)**: installs everything in `zypper-packages.txt` (Leap
   and Tumbleweed share one path; package names verified against the OSS
   repos — `fd`, `the_silver_searcher`, `git-delta`, `ImageMagick`,
   `libopenssl-devel`, `libbz2-devel`, `sqlite3-devel`, `xmlsec1-devel`, etc.).
-  `topgrade` is packaged, `neovim`/`nvm`/`pyenv`/`lazygit`/`oh-my-tmux`/
-  `antidote` come from their upstream installers, and `zsh` is zypper-installed.
+  `topgrade` is packaged, `neovim`/`nvm`/`pyenv`/`lazygit` come from their
+  upstream installers (oh-my-tmux/antidote are externals), and `zsh` is
+  zypper-installed.
   GUI apps live in `zypper-packages-desktop.txt`. Signal isn't in the official
   repos — install via its network repo or Flatpak yourself.
 - **Bazzite (atomic, uBlue/Fedora-derived)**: detected via `ID=bazzite` in
@@ -180,7 +184,7 @@ in `home/` (e.g. `~/.zshrc` is `home/executable_dot_zshrc`).
 | `.zshrc`, `.zprofile`, `.zsh_aliases` | Shell config. OS-detected (`IS_MAC`/`IS_LINUX`) where Mac and Linux paths diverge — Homebrew-only lines are guarded so they're inert on Linux, and use `$HOMEBREW_PREFIX` rather than assuming Apple Silicon. |
 | `.gitconfig` | Wires up `git-delta` as the pager and includes `~/.gitconfig.local` for identity. |
 | `.config/nvim/` | [LazyVim](https://www.lazyvim.org/) — the starter template plus a `gruvbox` colorscheme override in `lua/plugins/colorscheme.lua`. |
-| `.config/tmux/tmux.conf` | Points at [oh-my-tmux](https://github.com/gpakosz/.tmux) via `source-file ~/.local/share/tmux/oh-my-tmux/.tmux.conf` (cloned there by `install.sh`). |
+| `.config/tmux/tmux.conf` | Vendored [oh-my-tmux](https://github.com/gpakosz/.tmux) config (the upstream repo is also cloned to `~/.local/share/tmux/oh-my-tmux` as a chezmoi git-repo external). |
 | `.config/tmux/tmux.conf.local` | Local oh-my-tmux overrides. |
 | `.config/kitty/` | Kitty terminal config, gruvbox colorscheme. |
 | `.config/lf/lfrc` | [lf](https://github.com/gokcehan/lf) file manager config. |

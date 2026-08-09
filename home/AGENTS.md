@@ -58,9 +58,16 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
   `zstyle ':omz:update' mode disabled`).
 - `use-omz` (deferred compinit) must come first; syntax-highlighting and
   autosuggestions must stay last in that order (documented in the file).
-- antidote itself: prefer a packaged copy (Homebrew prefix), self-heal by
-  git-clone to `~/.antidote` if none found (works before `install.sh` has run
-  on a fresh bootstrap).
+- antidote itself: chezmoi applies it as a git-repo external
+  (`home/.chezmoiexternal.toml`, target `~/.antidote`, refreshed at most
+  weekly by `chezmoi apply`). `.zshrc` still prefers a packaged copy
+  (Homebrew prefix) and self-heals by cloning to `~/.antidote` if the
+  external hasn't run yet (pre-`install.sh` shells on a fresh bootstrap).
+- oh-my-tmux is likewise an external (`~/.local/share/tmux/oh-my-tmux`); the
+  vendored `dot_config/tmux/tmux.conf` does NOT source that clone (it's a
+  full upstream copy), so the checkout is for upstream tooling/reference.
+  `install.sh` only self-heals the tpm checkout under
+  `~/.config/tmux/plugins` (`repair_tmux_plugins`).
 
 ## tmux
 
