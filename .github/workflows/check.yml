@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The gitleaks step below scans the whole history; the default
+          # shallow fetch would hand it a single commit to look at.
+          fetch-depth: 0
 
       - name: Install lint/test tools
         run: |
@@ -40,6 +44,8 @@ jobs:
       - name: gitleaks scan (full history)
         # Catches a --no-verify commit or a machine without the local hook;
         # the pre-commit hook only checks the staged diff.
-        run: gitleaks git --no-banner --exit-code
+        # gitleaks already exits 1 on findings; --exit-code takes an int, so
+        # passing it bare is a CLI error rather than a stricter scan.
+        run: gitleaks git --no-banner
         env:
           GITLEAKS_CONFIG: .gitleaks.toml
