@@ -139,6 +139,25 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
   init default branch
   main; `pull.ff = only`. Note `gitconfig.local` and `zshrc.local` are both
   untracked-by-design local escape hatches — never add identical config here.
+- `.githooks/pre-commit` (wired by `home/run_once_wire_git_hooks.sh`) runs
+  `gitleaks` on the staged diff; CI scans full history. Never commit a secret —
+  identity and machine specifics belong in the untracked `.local` files.
+
+## claude (agent session guards)
+
+- `dot_claude/settings.json` → `~/.claude/settings.json` registers two hooks,
+  both under `dot_claude/hooks/`:
+- **`PostToolUse.sh`**: if an agent edits a chezmoi-managed target directly
+  (e.g. `~/.zshrc`), it emits context naming the real source file
+  (`home/executable_dot_zshrc`) so the edit gets redone there; if an edit
+  lands inside the source tree it drops `/tmp/claude-chezmoi-dirty-<session>`
+  so the session's Stop can demand a commit.
+- **`Stop.sh`**: with a marker present and the tree dirty, blocks the session
+  ending once (`continue` + reason with the branch and finish commands);
+  the retry (`stop_hook_active=1`) releases and clears the marker. Sessions
+  that never touched the source are never nagged.
+- Both are pure bash+jq and no-op silently when `jq` is missing. The guard
+  model: the source tree is the truth; `~/.zshrc` is a generated target.
 
 ## Cross-cutting conventions
 
