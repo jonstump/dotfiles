@@ -457,7 +457,20 @@ install_mac() {
     fi
     NONINTERACTIVE=1 /bin/bash -c "$brew_install"
   fi
-  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  # Same architecture-aware ordering as dot_zprofile's Darwin branch: a
+  # Rosetta (x86_64) shell must prefer /usr/local (Intel/Rosetta prefix) and
+  # only fall back to /opt/homebrew, since a Rosetta shell routing to
+  # /opt/homebrew is wrong per Homebrew's docs. Without this, on a dual
+  # prefix machine install.sh would pick /opt/homebrew from a Rosetta shell
+  # while every login shell puts /usr/local first — tools installed here
+  # would be invisible to the interactive shell (wrong PATH, and every
+  # HOMEBREW_PREFIX-dependent lookup in .zshrc pointing at the wrong prefix).
+  if [ "$(uname -m)" = "x86_64" ]; then
+    set -- /usr/local/bin/brew /opt/homebrew/bin/brew
+  else
+    set -- /opt/homebrew/bin/brew /usr/local/bin/brew
+  fi
+  for brew_bin in "$@"; do
     [ -x "$brew_bin" ] && eval "$("$brew_bin" shellenv)" && break
   done
 
