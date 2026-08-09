@@ -482,6 +482,22 @@ set -g @powerkit_plugins "datetime,cpu,memory,git"
 set -g @powerkit_theme "gruvbox"
 set -g @powerkit_theme_variant "dark"
 
+# lazy-tmux isn't installed by Brewfile, apt-packages.txt or install.sh. The
+# daemon line used to fire on every tmux start and the `||` fallback swallowed
+# the real "command not found" behind "lazy-tmux daemon already running" —
+# a message that says the opposite of what happened. Check for the binary
+# first so the two cases are distinguishable, and so the keybinds report that
+# it's missing instead of silently doing nothing.
+#
+# Note this is the tmux *server's* PATH, not a pane's. .zshrc's auto-tmux
+# block has to stay last in the file for ~/.local/bin to be on it.
+run-shell -b 'command -v lazy-tmux >/dev/null 2>&1 && { lazy-tmux daemon --interval 3m --scrollback >/tmp/lazy-tmux.log 2>&1 || tmux display-message "lazy-tmux daemon already running"; }'
+bind-key f if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
+  'display-popup -w 75% -h 85% -E "lazy-tmux picker"' \
+  'display-message "lazy-tmux is not installed"'
+bind-key C-s if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
+  'run-shell "lazy-tmux save --all --scrollback && tmux display-message \"All sessions saved successfully!\""' \
+  'display-message "lazy-tmux is not installed"'
 
 # -- custom variables ----------------------------------------------------------
 
