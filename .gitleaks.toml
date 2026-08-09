@@ -1,0 +1,24 @@
+# gitleaks configuration for this repo.
+#
+# Only additions over gitleaks' built-in default rules live here. The repo
+# is public; do NOT add allowlist entries to paper over a real secret — an
+# allowlist is only for values that are intentionally public (test fixtures,
+# example keys, documented placeholders).
+#
+# Title and extend are required when overriding the default rule set; we keep
+# the defaults and only extend, so future allowlists go under [[allowlist]].
+
+title = "gitleaks config for dotfiles"
+
+[extend]
+useDefault = true
+
+# No allowlist entries yet. When one is genuinely needed (a test fixture,
+# a documented placeholder), add it here with a comment explaining why the
+# value is safe to commit:
+#
+# [[allowlist]]
+#   description = "example placeholder used in README samples"
+#   regexes = [
+#     '''AKIA[0-9A-Z]{16}''',  # never a real key when in docs
+#   ]

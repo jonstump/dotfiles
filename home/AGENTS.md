@@ -62,9 +62,16 @@ brief: what to know mid-session.
   `zstyle ':omz:update' mode disabled`).
 - `use-omz` (deferred compinit) must come first; syntax-highlighting and
   autosuggestions must stay last in that order (documented in the file).
-- antidote itself: chezmoi git-repo external (`~/.antidote`); `.zshrc` prefers
-  a packaged copy (Homebrew prefix) and self-heals by cloning pre-apply
-  (why: Architecture.md decisions).
+- antidote itself: chezmoi applies it as a git-repo external
+  (`home/.chezmoiexternal.toml`, target `~/.antidote`, refreshed at most
+  weekly by `chezmoi apply`). `.zshrc` still prefers a packaged copy
+  (Homebrew prefix) and self-heals by cloning to `~/.antidote` if the
+  external hasn't run yet (pre-`install.sh` shells on a fresh bootstrap).
+- oh-my-tmux is likewise an external (`~/.local/share/tmux/oh-my-tmux`); the
+  vendored `dot_config/tmux/tmux.conf` does NOT source that clone (it's a
+  full upstream copy), so the checkout is for upstream tooling/reference.
+  `install.sh` only self-heals the tpm checkout under
+  `~/.config/tmux/plugins` (`repair_tmux_plugins`).
 
 ## tmux
 
@@ -131,9 +138,29 @@ brief: what to know mid-session.
   it's a public repo. `[include] path = ~/.gitconfig.local` for `[user]`; without
   that file, commits fail with "Please tell me who you are". Delta is the pager
   and interactive diffFilter; `merge.conflictstyle = diff3`, not `zdiff3` (why:
-  Architecture.md decisions); init default branch
+  Architecture.md decisions);
+  init default branch
   main; `pull.ff = only`. Note `gitconfig.local` and `zshrc.local` are both
   untracked-by-design local escape hatches — never add identical config here.
+- `.githooks/pre-commit` (wired by `home/run_once_wire_git_hooks.sh`) runs
+  `gitleaks` on the staged diff; CI scans full history. Never commit a secret —
+  identity and machine specifics belong in the untracked `.local` files.
+
+## claude (agent session guards)
+
+- `dot_claude/settings.json` → `~/.claude/settings.json` registers two hooks,
+  both under `dot_claude/hooks/`:
+- **`PostToolUse.sh`**: if an agent edits a chezmoi-managed target directly
+  (e.g. `~/.zshrc`), it emits context naming the real source file
+  (`home/executable_dot_zshrc`) so the edit gets redone there; if an edit
+  lands inside the source tree it drops `/tmp/claude-chezmoi-dirty-<session>`
+  so the session's Stop can demand a commit.
+- **`Stop.sh`**: with a marker present and the tree dirty, blocks the session
+  ending once (`continue` + reason with the branch and finish commands);
+  the retry (`stop_hook_active=1`) releases and clears the marker. Sessions
+  that never touched the source are never nagged.
+- Both are pure bash+jq and no-op silently when `jq` is missing. The guard
+  model: the source tree is the truth; `~/.zshrc` is a generated target.
 
 ## Cross-cutting conventions
 

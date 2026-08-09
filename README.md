@@ -62,11 +62,12 @@ $(chezmoi source-path)/../install.sh
 - **Debian/Ubuntu-family Linux (apt)**: adds the Signal apt repo on amd64
   (modern `signed-by` keyring in `/etc/apt/keyrings`, not the deprecated
   `apt-key`), installs everything in `apt-packages.txt`, and installs
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` via their
-  own upstream installers since none of those are reliable apt packages
-  (`topgrade` comes from PyPI via `pipx install topgrade`, using the `pipx`
-  that apt already installed). Unavailable packages are reported and skipped
-  rather than failing the install.
+  `neovim`/`nvm`/`pyenv` via their own upstream installers since none of
+  those are reliable apt packages; `lazygit`/`topgrade` are apt-installed
+  when a candidate exists and otherwise fall back to an upstream tarball
+  (lazygit) or `pipx` (topgrade — using the `pipx` that apt already
+  installed). Unavailable packages are reported and skipped rather than
+  failing the install.
   - `zsh` itself is apt-installed when available, but on a derivative distro
     whose `sources.list` doesn't carry it (seen on PikaOS), it's built from
     the upstream release tarball instead — `build-essential` and
@@ -80,23 +81,27 @@ $(chezmoi source-path)/../install.sh
     otherwise it says so and moves on.
 - **Arch Linux (pacman)**: installs everything in `pacman-packages.txt`
   (official repo only — AUR packages are not installed by `install.sh`).
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` come from
-  their upstream installers (same as apt), and `zsh` is pacman-installed (it
-  isn't missing from Arch's repo). GUI apps live in
-  `pacman-packages-desktop.txt` (same `want_desktop_packages` gate). Signal is
-  an AUR package, so it isn't installed at all on Arch — install it yourself.
+  `neovim`/`nvm`/`pyenv` come from their upstream installers (same as apt);
+  `lazygit`/`topgrade` are pacman-installed when present in Arch's repos and
+  fall back to an upstream tarball (lazygit) or `pipx` (topgrade) otherwise;
+  `zsh` is pacman-installed (it isn't missing from Arch's repo). GUI apps
+  live in `pacman-packages-desktop.txt` (same `want_desktop_packages` gate).
+  Signal is an AUR package, so it isn't installed at all on Arch — install it
+  yourself.
 - **Fedora (dnf)**: installs everything in `dnf-packages.txt`, and
-  `neovim`/`nvm`/`pyenv`/`topgrade`/`lazygit`/`oh-my-tmux`/`antidote` come from
-  their upstream installers. `zsh` is dnf-installed. GUI apps live in
-  `dnf-packages-desktop.txt`. Signal needs an external Copr repo that
-  `install.sh` doesn't add — install it yourself.
+  `neovim`/`nvm`/`pyenv` come from their upstream installers;
+  `lazygit`/`topgrade` are dnf-installed when available, falling back to an
+  upstream tarball (lazygit) or `pipx` (topgrade) otherwise. `zsh` is
+  dnf-installed. GUI apps live in `dnf-packages-desktop.txt`. Signal needs
+  an external Copr repo that `install.sh` doesn't add — install it yourself.
 - **openSUSE (zypper)**: installs everything in `zypper-packages.txt` (Leap
   and Tumbleweed share one path; package names verified against the OSS
   repos — `fd`, `the_silver_searcher`, `git-delta`, `ImageMagick`,
   `libopenssl-devel`, `libbz2-devel`, `sqlite3-devel`, `xmlsec1-devel`, etc.).
-  `topgrade` is packaged, `neovim`/`nvm`/`pyenv`/`lazygit`/`oh-my-tmux`/
-  `antidote` come from their upstream installers, and `zsh` is zypper-installed.
-  GUI apps live in `zypper-packages-desktop.txt`. Signal isn't in the official
+  `topgrade` is packaged, `neovim`/`nvm`/`pyenv`/`lazygit` come from their
+  upstream installers (lazygit checks for a zypper candidate first),
+  and `zsh` is zypper-installed. GUI apps live in
+  `zypper-packages-desktop.txt`. Signal isn't in the official
   repos — install via its network repo or Flatpak yourself.
 - **Bazzite (atomic, uBlue/Fedora-derived)**: detected via `ID=bazzite` in
   `/etc/os-release` and treated as its own target, not plain Fedora. The root

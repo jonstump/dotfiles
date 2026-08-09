@@ -41,6 +41,8 @@ Last updated: 2026-08-09
 | 11 | **nvim `example.lua` kept as dead code** | Upstream LazyVim boilerplate guarded by `if true then return {} end` + `stylua: ignore`; exists only as documentation and references config that is **not** enabled — don't treat its contents as user config |
 | 12 | **install.sh entrypoint behind a `BASH_SOURCE` guard** (#118) | Lets bats source the helper functions (`detect_os`, `pm_has_candidate`, `read_manifest`, …) without executing the installer — the hook that makes `make test` possible |
 | 13 | **no `cd` / PATH imports in shell startup, PATH dedup via `typeset -U path`** (#146) | Every tmux pane re-sources `.zshrc`; unconditional re-prepends with no dedup made PATH grow linearly. `typeset -U path` drops duplicates automatically, first occurrence wins |
+| 14 | **`/opt/nvim-*` root-owned after `sudo mv`** (#156) | The release tarball is extracted into a user-owned `mktemp -d`, and `sudo mv` preserves the source owner — leaving the tree the `/usr/local/bin/nvim` symlink points at owned by the invoking user. `sudo chown -R root:root` keeps `/opt` a proper system-owned location |
+| 15 | **lazygit/topgrade installed package-first, upstream/pipx as fallback** (#148) | `pm_has_candidate` is checked before any fallback on every platform, so the documented install path is "distro package when it exists, upstream tarball (lazygit) or `pipx` (topgrade) otherwise" — not a fixed upstream installer |
 
 ## Open questions
 
