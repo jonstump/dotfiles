@@ -32,6 +32,11 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
      replaces the process, and that process forks the tmux *server*, so anything
      after it never reaches the server environment. `&& exit` instead of
      `exec tmux` so a failed server start leaves a shell to show the error.
+     Before attaching, if `main` does not exist yet (fresh server), it runs
+     `lazy-tmux bootstrap -session main` (ignoring failures) so a saved `main`
+     is restored; restoring into an existing session is a lazy-tmux no-op and
+     is skipped via `has-session`. `tmux.conf.local` also gates a bootstrap
+     restore on server start with the same `has-session` check.
      Opt-outs: `NO_AUTO_TMUX=1`, `TERM_PROGRAM=vscode`.
 
 - `executable_dot_zsh_aliases`: OS-specific aliases guarded by `IS_MAC`/`IS_LINUX`
@@ -72,6 +77,13 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
   exists that references a `lazy-tmux` helper — behavior must be verified on a
   live session; comments in `.zshrc` explain why PATH must be set before the
   tmux exec (server env inherits it).
+- `lazy-tmux` is a third-party helper installed manually (`~/.local/bin`, not
+  via the package manifests). Its `bootstrap`/`restore` need the `main` session
+  to NOT exist (restore into an existing session is a silent no-op), and older
+  binaries (pre-mid-2026) falsely report restore failure due to a window-0
+  focus bug — both are handled by gating the bootstrap on `has-session` and
+  ignoring its exit status; the first terminal in `.zshrc` and the `run-shell`
+  line in `tmux.conf.local` both follow this pattern.
 
 ## nvim (LazyVim starter)
 
