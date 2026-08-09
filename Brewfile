@@ -202,6 +202,8 @@ brew "thefuck"
 brew "tlrc"
 # Terminal multiplexer
 brew "tmux"
+# Secret scanner; powers the pre-commit hook and CI (repo .githooks/).
+brew "gitleaks"
 # Upgrade all the things
 brew "topgrade"
 # Next generation frontend tooling. It's fast!

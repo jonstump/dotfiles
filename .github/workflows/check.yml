@@ -28,3 +28,18 @@ jobs:
 
       - name: make test
         run: make test
+
+      - name: Install gitleaks
+        run: |
+          # gitleaks isn't packaged on Debian/Ubuntu (see issue #115), so
+          # fetch the release binary like install.sh does for lazygit.
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: gitleaks scan (full history)
+        # Catches a --no-verify commit or a machine without the local hook;
+        # the pre-commit hook only checks the staged diff.
+        run: gitleaks git --no-banner --exit-code
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml

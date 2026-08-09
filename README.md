@@ -159,6 +159,16 @@ Brewfile on macOS; on Linux `install.sh` installs it via the package manager
 when available (Fedora/Arch package it, Debian/Ubuntu largely don't), falling
 back to `pipx` on Debian/Ubuntu.
 
+### Secret scanning
+
+This repo is public, so `gitleaks` runs on every commit and in CI. The
+tracked pre-commit hook (`.githooks/pre-commit`, wired via a chezmoi
+`run_once_` script) scans the staged diff and rejects a commit that leaks a
+secret; CI (`make check` → gitleaks step) scans the full history, so a
+`--no-verify` commit is still caught before merge. The hook degrades to a
+skip-with-warning when `gitleaks` isn't installed; it's in Homebrew, Arch and
+Fedora, and fetched as a release tarball elsewhere.
+
 ## What's here
 
 Paths below are the **target** paths under `$HOME` — i.e. what you'd
