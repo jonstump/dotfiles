@@ -61,8 +61,10 @@ do
 done
 unset _candidate
 
-# install.sh clones antidote too. This is the self-heal path for a shell opened
-# before install.sh has run — on a fresh machine bootstrap.sh checks out this
+# chezmoi applies antidote as a git-repo external (~/.antidote, see
+# home/.chezmoiexternal.toml; install.sh used to clone it). This block is the
+# self-heal path for a shell opened before
+# install.sh has run — on a fresh machine bootstrap.sh checks out this
 # .zshrc first, so the very next terminal would otherwise come up bare.
 if [ -z "$_antidote" ] && command -v git >/dev/null 2>&1; then
   if [ -e "$HOME/.antidote/antidote.zsh" ]; then

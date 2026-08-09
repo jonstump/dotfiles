@@ -1,0 +1,34 @@
+# git-clone installs managed by chezmoi instead of hand-rolled functions in
+# install.sh (which used to own these; the install_* functions were removed
+# when this landed — see the repo history for the before/after).
+#
+# These are `type = "git-repo"` externals: chezmoi runs `git clone` into the
+# target path if absent, and `git pull` (with the args below) to refresh it,
+# but never more often than refreshPeriod. `--ff-only` keeps an upstream
+# force-push or a local edit from silently diverging; `--quiet` keeps the
+# refresh from spraying git chatter over `chezmoi apply` output.
+#
+# Contents are delegated to git — chezmoi cannot manage files inside these
+# directories, and they show up in `chezmoi unmanaged`. That is the point:
+# this repo's own tmux config is vendored under home/dot_config/tmux/, and
+# antidote's zsh sources are loaded by .zshrc at the fixed paths below.
+#
+# NOTE on pinning: git-repo externals have no `revision` field, so versions
+# are NOT pinned to a commit (the issue's original ask). The branch is
+# whatever upstream's default is; refreshPeriod bounds how often apply
+# re-pulls. If a reproducible checkout is ever needed, switch these to
+# `type = "archive"` with a tagged tarball URL and drop refreshPeriod.
+
+[".local/share/tmux/oh-my-tmux"]
+  type = "git-repo"
+  url = "https://github.com/gpakosz/.tmux.git"
+  refreshPeriod = "168h"
+  [".local/share/tmux/oh-my-tmux".pull]
+    args = ["--ff-only", "--quiet"]
+
+[".antidote"]
+  type = "git-repo"
+  url = "https://github.com/mattmc3/antidote.git"
+  refreshPeriod = "168h"
+  [".antidote".pull]
+    args = ["--ff-only", "--quiet"]
