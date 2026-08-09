@@ -161,3 +161,22 @@ EOF
   [ "$result" = "apt" ]
   rm -f "$fake_os"
 }
+
+@test "pm_has_candidate zypper branch searches available, not installed-only" {
+  # Regression for #142: the zypper branch passed --installed-only, so it
+  # always returned false for the not-yet-installed tools every caller of
+  # pm_has_candidate checks. Source-inspection test: the actual zypper
+  # invocation must use --match-exact without --installed-only, like the
+  # apt/pacman/dnf branches query availability.
+  local install_sh zypper_cmd
+  install_sh="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/install.sh"
+
+  # The command line, not the explanatory comment: grab the line that
+  # actually invokes zypper.
+  zypper_cmd="$(grep -E '^\s+zypper ' "$install_sh" | head -1)"
+  grep -q -- "--match-exact" <<< "$zypper_cmd"
+  if grep -q -- "--installed-only" <<< "$zypper_cmd"; then
+    echo "zypper invocation still passes --installed-only" >&2
+    return 1
+  fi
+}
