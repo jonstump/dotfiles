@@ -33,16 +33,20 @@ detect_os() {
   # on the standard rpm-ostree marker rather than a hardcoded ID string (it
   # also covers future images). Check before the generic package-manager
   # branches below.
-  if [ -f /etc/os-release ]; then
+  #
+  # The path/marker are overridable via env for tests (a real CI box may not
+  # be able to create /run/ostree-booted); they default to the real paths.
+  if [ -f "${OS_RELEASE:-/etc/os-release}" ]; then
     # shellcheck disable=SC1091
-    . /etc/os-release
+    # shellcheck source=/etc/os-release
+    . "${OS_RELEASE:-/etc/os-release}"
     if [ "${ID:-}" = "bazzite" ] || \
        { [ "${ID:-}" = "fedora" ] && { [ "${VARIANT_ID:-}" = "silverblue" ] || [ "${VARIANT_ID:-}" = "kinoite" ]; }; }; then
       echo "bazzite"
       return
     fi
   fi
-  if [ -f /run/ostree-booted ]; then
+  if [ -e "${OSTREE_MARKER:-/run/ostree-booted}" ]; then
     echo "bazzite"
     return
   fi
@@ -143,9 +147,9 @@ pm_install() {
 # upstream oh-my-tmux's own install.sh, which never destroys existing state,
 # only backs it up before replacing it.
 backup_aside() {
-  local path="$1"
+  local path="$1" backup
   [ -e "$path" ] || [ -L "$path" ] || return 0
-  local backup="$path.bak.$(date +%Y%m%d%H%M%S)"
+  backup="$path.bak.$(date +%Y%m%d%H%M%S)"
   echo "Backing up $path -> $backup"
   mv "$path" "$backup"
 }
@@ -222,19 +226,15 @@ pm_has_candidate() {
 # .zshrc clones it too if it's missing; doing it here keeps the first shell
 # after install.sh from paying for it.
 install_antidote() {
-  local target="$HOME/.antidote" packaged
+  local target="$HOME/.antidote"
   # Skip if Homebrew already provides one — .zshrc prefers that over the
   # clone, so cloning anyway would leave an unused copy that nothing ever
   # updates. (Written as an if rather than `[ -e ] && return`: that form
   # leaves the loop with a non-zero status on the last iteration, which is a
   # live grenade under the `set -e` at the top of this file.)
-  for packaged in \
-    "${HOMEBREW_PREFIX:-}/share/antidote/antidote.zsh"
-  do
-    if [ -e "$packaged" ]; then
-      return 0
-    fi
-  done
+  if [ -e "${HOMEBREW_PREFIX:-}/share/antidote/antidote.zsh" ]; then
+    return 0
+  fi
 
   if [ ! -d "$target" ]; then
     echo "Cloning antidote -> $target"
@@ -304,7 +304,14 @@ install_nerd_font() {
 # filenames, so /releases/latest/download/ can't be used directly the way it
 # can for neovim.
 github_latest_version() {
-  curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
+  # Accept the API response on stdin (test seam / pipes) or fetch it.
+  local body
+  if [ ! -t 0 ]; then
+    body="$(cat)"
+  else
+    body="$(curl -fsSL "https://api.github.com/repos/$1/releases/latest")"
+  fi
+  printf '%s\n' "$body" \
     | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
 }
 
@@ -942,6 +949,8 @@ install_linux() {
     sudo pkgfile --update || \
       echo "WARNING: pkgfile --update failed; the zsh command-not-found hook will" >&2
       echo "stay broken until it succeeds (e.g. after a network retry)." >&2
+    # shellcheck disable=SC2015  # best-effort timer enable; || true is the
+    # intended no-error outcome even when the enable fails.
     command -v systemctl >/dev/null 2>&1 && sudo systemctl enable --now pkgfile-update.timer 2>/dev/null || true
   fi
 
@@ -973,18 +982,27 @@ install_linux() {
   set_login_shell
 }
 
-PM="$(detect_os)"
-case "$PM" in
-  mac)        install_mac ;;
-  bazzite)    install_bazzite ;;
-  apt|pacman|dnf|zypper) install_linux ;;
-  *)
-    # Still do the platform-independent part rather than skipping everything.
-    echo "Unrecognized OS/package manager — skipping package installation." >&2
-    install_oh_my_tmux
-    install_antidote
-    ;;
-esac
+main() {
+  PM="$(detect_os)"
+  case "$PM" in
+    mac)        install_mac ;;
+    bazzite)    install_bazzite ;;
+    apt|pacman|dnf|zypper) install_linux ;;
+    *)
+      # Still do the platform-independent part rather than skipping everything.
+      echo "Unrecognized OS/package manager — skipping package installation." >&2
+      install_oh_my_tmux
+      install_antidote
+      ;;
+  esac
 
-echo
-echo "Done. Open a new shell (or reattach tmux) to pick everything up."
+  echo
+  echo "Done. Open a new shell (or reattach tmux) to pick everything up."
+}
+
+# Only run the installer when executed directly. Sourcing the file (as the
+# bats test-suite does, and as any future lib consumer might) defines the
+# functions and globals but must not start installing packages.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi
