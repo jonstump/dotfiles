@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Pre-commit secret scan via gitleaks.
+#
+# Scans the staged diff only (fast, no full-history scan on every commit).
+# Degrades to a loud warning when gitleaks is not installed rather than
+# blocking every commit on a machine that lacks it — the CI lint job runs
+# the full scan, so a --no-verify or gitleaks-less machine is still caught
+# before merge.
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks: not installed — skipping secret scan on this commit." >&2
+  echo "gitleaks: install it (brew install gitleaks, or the package manager) to" >&2
+  echo "gitleaks: get local protection. CI still scans." >&2
+  exit 0
+fi
+
+# --staged scans the index; --verbose prints the offending file. gitleaks
+# exits 1 on findings, which fails the commit.
+exec gitleaks git --pre-commit --staged --verbose --no-banner

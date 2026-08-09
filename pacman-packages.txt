@@ -54,6 +54,8 @@ jq
 ripgrep
 fd
 fzf
+# Secret scanner; powers the pre-commit hook and CI (repo .githooks/).
+gitleaks
 the_silver_searcher
 bat
 git-delta
