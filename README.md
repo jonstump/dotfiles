@@ -206,6 +206,15 @@ tmux session named `main` (creating it if it doesn't exist yet), instead of
 spawning a new session per terminal window. See the `tmux new-session -A -s
 main` block at the **end** of `.zshrc`.
 
+On a fresh server (no `main` yet), the first terminal first runs
+`lazy-tmux bootstrap -session main`, so a previously saved `main` (windows,
+panes, scrollback via the daemon and `<prefix> C-s`) is restored instead of
+starting blank. Restoring into an already-running session is a lazy-tmux
+no-op, so this only happens when `main` is first created; a missing or old
+`lazy-tmux`, or a restore failure, falls back to a plain empty session.
+`tmux.conf.local` also bootstraps on server start as a fallback for servers
+started outside `.zshrc`.
+
 It has to stay last in the file: that shell becomes the tmux *server* on the
 first terminal, so anything set after it never reaches the server's
 environment — including the `~/.local/bin` entry that `tmux.conf.local` needs

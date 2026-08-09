@@ -147,11 +147,26 @@ export PATH="$HOME/.local/bin:$PATH"
 # socket, unwritable /tmp, resource limits) exec would already have replaced
 # the shell, so the window just dies with no shell left to show the error.
 #
+# The first terminal on a fresh server runs `lazy-tmux bootstrap -session main`
+# before attaching, so a saved `main` (windows/panes, via the daemon and
+# `<prefix> C-s`) is restored instead of starting blank. Restoring into an
+# already-existing session is a lazy-tmux no-op, so this only ever runs when
+# `main` is first created. A missing/old lazy-tmux, or a restore failure, falls
+# back to a plain empty session — never a broken terminal.
+#
 # NO_AUTO_TMUX=1 opts out; so does an editor-integrated terminal, where
 # auto-tmux breaks VS Code/Cursor shell integration.
 if [[ -o interactive ]] && [[ -z "$TMUX" ]] && [[ -z "${NO_AUTO_TMUX:-}" ]] \
    && [[ "${TERM_PROGRAM:-}" != "vscode" ]] \
    && [[ ! "$TERM" =~ (screen|tmux|dumb) ]] \
    && command -v tmux >/dev/null 2>&1; then
+  # On the very first terminal (fresh server, no `main` yet), ask lazy-tmux to
+  # rebuild `main` from its last snapshot instead of starting a blank session.
+  # It's a no-op with no saved state, and harmless if lazy-tmux is missing or
+  # old: restore failures are ignored and we fall through to plain attach.
+  if ! tmux has-session -t main 2>/dev/null; then
+    command -v lazy-tmux >/dev/null 2>&1 && \
+      lazy-tmux bootstrap -session main >/dev/null 2>&1 || true
+  fi
   tmux new-session -A -s main && exit
 fi
