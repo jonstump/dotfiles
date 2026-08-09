@@ -36,7 +36,8 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
      `lazy-tmux bootstrap -session main` (ignoring failures) so a saved `main`
      is restored; restoring into an existing session is a lazy-tmux no-op and
      is skipped via `has-session`. `tmux.conf.local` also gates a bootstrap
-     restore on server start with the same `has-session` check.
+     restore on server start with the same `has-session` check (only covers
+     server starts where the spawning command does not itself create `main`).
      Opt-outs: `NO_AUTO_TMUX=1`, `TERM_PROGRAM=vscode`.
 
 - `executable_dot_zsh_aliases`: OS-specific aliases guarded by `IS_MAC`/`IS_LINUX`
