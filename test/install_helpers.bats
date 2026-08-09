@@ -164,6 +164,7 @@ EOF
   rm -f "$fake_os"
 }
 
+
 @test "pm_has_candidate zypper branch searches available, not installed-only" {
   # Regression for #142: the zypper branch passed --installed-only, so it
   # always returned false for the not-yet-installed tools every caller of
@@ -196,4 +197,21 @@ EOF
   run bash -c 'source "${INSTALL_SH:?}"; PM=zypper; zypper() { return 1; }; pm_has_candidate topgrade'
   [ "$status" -ne 0 ]
   rm -f "$zypper_capture"
+}
+
+
+@test "install_bazzite warns when zsh is missing, and Brewfile has zsh" {
+  # Regression for #143: Bazzite never installed zsh (no Brewfile entry, and
+  # install_bazzite never called install_zsh), so the whole zsh stack
+  # silently never loaded. Two guards: install_bazzite now has an explicit
+  # else-warning, and the Brewfile ships a zsh entry.
+  local install_sh missing_with_warning
+  install_sh="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/install.sh"
+
+  # The chsh block in install_bazzite must warn when zsh is absent.
+  missing_with_warning="$(sed -n '/Bazzite: skipping chsh/,/^  fi/p' "$install_sh")"
+  grep -q "still not installed after the Brewfile pass" <<< "$missing_with_warning"
+
+  # The Brewfile must carry zsh so install_bazzite's brew bundle gets it.
+  grep -q '^brew "zsh"' "$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/Brewfile"
 }
