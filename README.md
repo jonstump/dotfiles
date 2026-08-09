@@ -46,6 +46,7 @@ installer that was just applied:
 $(chezmoi source-path)/../install.sh
 ```
 
+
 `install.sh` is safe to re-run; every step checks whether its target already
 exists before doing anything.
 

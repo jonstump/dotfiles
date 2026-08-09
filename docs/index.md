@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/jonstump/dotfiles/main/bootstrap.sh
 ```
 
 Only `curl` is required up front — the script installs git itself if it's
-missing (chezmoi day-to-day usage below wants a real git, even though chezmoi
+missing (day-to-day usage wants a real git, even though chezmoi
 can clone without one). On macOS that means kicking off the Xcode Command
 Line Tools install (git ships with them); accept the dialog, let it finish,
 then re-run the same command. On Linux it installs git via

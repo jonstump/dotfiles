@@ -12,6 +12,8 @@ setup() {
   install_sh="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/install.sh"
   # shellcheck source=install.sh
   source "$install_sh"
+  # Absolute path for nested bash -c invocations (run/subshells).
+  export INSTALL_SH="$install_sh"
 
   export SCRIPT_DIR="$(mktemp -d)"
   export PM=""
@@ -130,7 +132,7 @@ EOF
   printf 'ID=fedora\nVARIANT_ID="silverblue"\n' > "$fake_os"
   result="$(
     OS_RELEASE="$fake_os" OSTREE_MARKER="/nonexistent-for-test" \
-      bash -c 'source ./install.sh; detect_os'
+      bash -c 'source "${INSTALL_SH:?}"; detect_os'
   )"
   [ "$result" = "bazzite" ]
   rm -f "$fake_os"
@@ -145,7 +147,7 @@ EOF
   printf 'ID=fedora\n' > "$fake_os"
   result="$(
     OS_RELEASE="$fake_os" OSTREE_MARKER="$fake_marker" \
-      bash -c 'source ./install.sh; detect_os'
+      bash -c 'source "${INSTALL_SH:?}"; detect_os'
   )"
   [ "$result" = "bazzite" ]
   rm -f "$fake_os" "$fake_marker"
@@ -160,4 +162,56 @@ EOF
   result="$(OS_RELEASE="$fake_os" OSTREE_MARKER="/nonexistent-for-test" detect_os)"
   [ "$result" = "apt" ]
   rm -f "$fake_os"
+}
+
+
+@test "pm_has_candidate zypper branch searches available, not installed-only" {
+  # Regression for #142: the zypper branch passed --installed-only, so it
+  # always returned false for the not-yet-installed tools every caller of
+  # pm_has_candidate checks. Functional test: stub zypper as a shell
+  # function (the name shadows the PATH binary), capture the exact
+  # invocation, and assert pm_has_candidate returns the stub's status.
+  local zypper_args zypper_capture
+  zypper_capture="$(mktemp)"
+
+  # Available package: stub search --match-exact succeeds → candidate true.
+  # zypper is stubbed as a shell function inside the bash -c (the name
+  # shadows any PATH binary); it records its invocation to a file and
+  # returns 0, so pm_has_candidate must return true. PM must be set after
+  # sourcing install.sh — its top-level `PM=""` resets it on source.
+  run env ZYPPER_LOG="$zypper_capture" bash -c '
+    source "${INSTALL_SH:?}"
+    PM=zypper
+    zypper() { printf "%s\n" "$*" >> "${ZYPPER_LOG:?}"; return 0; }
+    pm_has_candidate topgrade
+  '
+  [ "$status" -eq 0 ]
+  zypper_args="$(cat "$zypper_capture")"
+  [[ "$zypper_args" == "--non-interactive search --match-exact topgrade" ]]
+  if [[ "$zypper_args" == *"--installed-only"* ]]; then
+    echo "zypper invocation still passes --installed-only" >&2
+    return 1
+  fi
+
+  # Unavailable package: stub returns non-zero → candidate false.
+  run bash -c 'source "${INSTALL_SH:?}"; PM=zypper; zypper() { return 1; }; pm_has_candidate topgrade'
+  [ "$status" -ne 0 ]
+  rm -f "$zypper_capture"
+}
+
+
+@test "install_bazzite warns when zsh is missing, and Brewfile has zsh" {
+  # Regression for #143: Bazzite never installed zsh (no Brewfile entry, and
+  # install_bazzite never called install_zsh), so the whole zsh stack
+  # silently never loaded. Two guards: install_bazzite now has an explicit
+  # else-warning, and the Brewfile ships a zsh entry.
+  local install_sh missing_with_warning
+  install_sh="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/install.sh"
+
+  # The chsh block in install_bazzite must warn when zsh is absent.
+  missing_with_warning="$(sed -n '/Bazzite: skipping chsh/,/^  fi/p' "$install_sh")"
+  grep -q "still not installed after the Brewfile pass" <<< "$missing_with_warning"
+
+  # The Brewfile must carry zsh so install_bazzite's brew bundle gets it.
+  grep -q '^brew "zsh"' "$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/Brewfile"
 }

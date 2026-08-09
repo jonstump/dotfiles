@@ -35,10 +35,14 @@ lint-shellcheck:
 
 lint-zsh:
 	@echo "==> zsh -n (home/ shell files)"
+	@# zsh -n's exit status must be checked, not sed's: without PIPESTATUS
+	@# the pipeline always looks successful (sed exits 0 even when zsh -n
+	@# reported a parse error), so make lint would pass on a broken file.
 	@if command -v zsh >/dev/null 2>&1; then \
 		fail=0; \
 		for f in $(HOME_SHELL_FILES); do \
-			if ! zsh -n "$$f" 2>&1 | sed "s|^|$$f: |" >&2; then fail=1; fi; \
+			zsh -n "$$f" 2>&1 | sed "s|^|$$f: |" >&2; \
+			[ "$${PIPESTATUS[0]}" -eq 0 ] || fail=1; \
 		done; \
 		[ "$$fail" -eq 0 ] || exit 1; \
 	else \

@@ -202,6 +202,8 @@ brew "thefuck"
 brew "tlrc"
 # Terminal multiplexer
 brew "tmux"
+# Secret scanner; powers the pre-commit hook and CI (repo .githooks/).
+brew "gitleaks"
 # Upgrade all the things
 brew "topgrade"
 # Next generation frontend tooling. It's fast!
@@ -214,6 +216,11 @@ brew "wget"
 brew "wireguard-tools"
 # Personal information dashboard for your terminal
 brew "wtfutil"
+# Z shell. Required on Bazzite: the image doesn't ship zsh, and
+# install_bazzite() installs only via the Brewfile (no dnf, read-only root
+# fs) — without this the whole zsh-based stack never loads there. Harmless
+# on macOS/other Linux where a system zsh already satisfies brew bundle.
+brew "zsh"
 # A powerful terminal-based AI assistant for developers, providing intelligent coding assistance directly in your terminal.
 brew "charmbracelet/tap/crush", trusted: true
 # Application launcher and productivity software
