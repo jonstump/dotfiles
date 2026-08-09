@@ -161,3 +161,19 @@ EOF
   [ "$result" = "apt" ]
   rm -f "$fake_os"
 }
+
+@test "install_bazzite warns when zsh is missing, and Brewfile has zsh" {
+  # Regression for #143: Bazzite never installed zsh (no Brewfile entry, and
+  # install_bazzite never called install_zsh), so the whole zsh stack
+  # silently never loaded. Two guards: install_bazzite now has an explicit
+  # else-warning, and the Brewfile ships a zsh entry.
+  local install_sh missing_with_warning
+  install_sh="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/install.sh"
+
+  # The chsh block in install_bazzite must warn when zsh is absent.
+  missing_with_warning="$(sed -n '/Bazzite: skipping chsh/,/^  fi/p' "$install_sh")"
+  grep -q "still not installed after the Brewfile pass" <<< "$missing_with_warning"
+
+  # The Brewfile must carry zsh so install_bazzite's brew bundle gets it.
+  grep -q '^brew "zsh"' "$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/Brewfile"
+}

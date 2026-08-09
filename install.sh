@@ -617,6 +617,11 @@ install_bazzite() {
   if command -v zsh >/dev/null 2>&1; then
     echo "Bazzite: skipping chsh — set your shell to zsh in the terminal"
     echo "emulator's profile instead (Bazzite recommends against system chsh)."
+  else
+    echo "WARNING: zsh is still not installed after the Brewfile pass." >&2
+    echo "The zsh-based dotfiles stack (.zshrc, antidote, p10k, tmux auto-attach)" >&2
+    echo "will not load. The Brewfile has a zsh entry; a failed/aborted brew" >&2
+    echo "bundle is the likely cause — re-run install.sh or 'brew install zsh'." >&2
   fi
 }
 
