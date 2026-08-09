@@ -793,9 +793,15 @@ apt_retry() {
     fi
     local rc=$?
     # A busy lock is worth waiting out; a package/network error won't resolve
-    # by re-running, so don't spin on it.
-    if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
-       ! fuser /var/lib/dpkg/lock >/dev/null 2>&1; then
+    # by re-running, so don't spin on it. fuser must run as root: on a fresh
+    # install the lock holder is a root-owned background updater (PikaOS's
+    # update timer, PackageKit/GUI app-center), and an unprivileged fuser
+    # can't see another user's open file descriptors — it would report
+    # "nothing holds the lock" and skip the retry entirely.
+    if ! sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+       ! sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1 && \
+       ! sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1 && \
+       ! sudo fuser /var/cache/apt/archives/lock >/dev/null 2>&1; then
       return "$rc"
     fi
     if [ $i -lt 4 ]; then
