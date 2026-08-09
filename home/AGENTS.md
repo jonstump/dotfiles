@@ -3,6 +3,11 @@
 Dotfiles repo managed by [chezmoi](https://www.chezmoi.io/). The source of truth
 is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 
+Design rationale (decisions, trade-offs, open questions) lives in
+[`Architecture.md`](../Architecture.md) at the repo root — consult it when a
+"why" is needed; update it when a decision changes. This file is the working
+brief: what to know mid-session.
+
 ## Chezmoi file-naming
 
 - `dot_FOO` → `~/.FOO`; `dot_config/foo/bar` → `~/.config/foo/bar`.
@@ -20,9 +25,9 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 
 - `executable_dot_zshrc` is the orchestrator and the most heavily-commented file;
   read it before changing shell behavior. Sourcing order:
-  1. `~/.zprofile` only if not a login shell (login shells already source it).
-     This is deliberate — on macOS every tmux pane starts a login shell, so
-     unconditional sourcing double-runs `pyenv init` and `thefuck --alias`.
+  1. `~/.zprofile` only if not a login shell (login shells already source it;
+     unconditional sourcing double-runs `pyenv init` and `thefuck --alias` —
+     why: Architecture.md decisions).
   2. `~/.zsh_aliases` (after `IS_MAC`/`IS_LINUX` are set, so aliases can guard
      per-OS).
   3. NVM, powerlevel10k, then antidote plugin loading (bundle lists below).
@@ -43,9 +48,8 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 - `executable_dot_zsh_aliases`: OS-specific aliases guarded by `IS_MAC`/`IS_LINUX`
   (e.g. `integrated`/`nvidia`/`vpn` are Linux-only, brew/pyenv alias is Mac-only).
   Machine-specific aliases belong in untracked `~/.zsh_aliases.local`, sourced at
-  the bottom. Comment explains why the bat/fd aliases are written as `if` blocks:
-  zsh **cannot parse** `a && ! b && alias …` ("parse error near `\n`") — don't
-  "simplify" them.
+  the bottom. The bat/fd aliases are written as `if` blocks — don't
+  "simplify" them (why: Architecture.md decisions).
 
 ## zsh plugins: antidote
 
@@ -133,9 +137,8 @@ is this directory; chezmoi applies it to `$HOME` on macOS and Linux targets.
 - `dot_gitconfig` → `~/.gitconfig`: **identity is deliberately not tracked** —
   it's a public repo. `[include] path = ~/.gitconfig.local` for `[user]`; without
   that file, commits fail with "Please tell me who you are". Delta is the pager
-  and interactive diffFilter; `merge.conflictstyle = diff3` (deliberately not
-  `zdiff3` — that needs git ≥ 2.35, but apt-installed git on Debian 11 /
-  Ubuntu 20.04 / 22.04 is older and fails on the first conflicted merge);
+  and interactive diffFilter; `merge.conflictstyle = diff3`, not `zdiff3` (why:
+  Architecture.md decisions);
   init default branch
   main; `pull.ff = only`. Note `gitconfig.local` and `zshrc.local` are both
   untracked-by-design local escape hatches — never add identical config here.
