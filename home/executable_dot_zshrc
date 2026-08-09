@@ -3,6 +3,13 @@ case "$(uname -s)" in
   Linux)  IS_LINUX=1 ;;
 esac
 
+# Deduplicate PATH (the $path array form) so every re-source of this file —
+# each new tmux pane in a long-lived server re-runs .zshrc — stops appending
+# the same entries (pyenv, NVM, ~/.local/bin, postgresql@17, Homebrew).
+# typeset -U makes $path drop duplicates automatically on assignment; the
+# first occurrence wins, so order is preserved.
+typeset -U path
+
 # Sources
 #
 # zsh already reads .zprofile for login shells — and on macOS, Terminal/iTerm2/
