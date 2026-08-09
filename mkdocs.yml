@@ -1,0 +1,23 @@
+site_name: dotfiles
+site_description: Personal dotfiles managed with chezmoi
+repo_url: https://github.com/jonstump/dotfiles
+theme:
+  name: material
+  palette:
+    scheme: default
+  features:
+    - navigation.sections
+nav:
+  - Home: index.md
+  - Install:
+      - install/macos.md
+      - install/debian-ubuntu.md
+      - install/arch.md
+      - install/fedora.md
+      - install/opensuse.md
+      - install/bazzite.md
+  - Usage: usage.md
+  - What's here: whats-here.md
+  - Auto-tmux: tmux.md
+markdown_extensions:
+  - tables
