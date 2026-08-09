@@ -946,9 +946,10 @@ install_linux() {
   # works from the very first shell instead of failing until someone runs
   # `pkgfile --update` by hand.
   if [ "$PM" = "pacman" ] && command -v pkgfile >/dev/null 2>&1; then
-    sudo pkgfile --update || \
+    sudo pkgfile --update || {
       echo "WARNING: pkgfile --update failed; the zsh command-not-found hook will" >&2
       echo "stay broken until it succeeds (e.g. after a network retry)." >&2
+    }
     # shellcheck disable=SC2015  # best-effort timer enable; || true is the
     # intended no-error outcome even when the enable fails.
     command -v systemctl >/dev/null 2>&1 && sudo systemctl enable --now pkgfile-update.timer 2>/dev/null || true
