@@ -44,7 +44,7 @@ fzf
 the_silver_searcher
 bat
 git-delta
-imagemagick
+ImageMagick
 mosh
 nmap
 syncthing

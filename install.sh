@@ -23,18 +23,28 @@ detect_os() {
     return
   fi
 
-  # Bazzite (uBlue image built on Fedora Silverblue/Kinoite) is atomic:
-  # rpm-ostree based, read-only root. It has dnf present but must NOT be
-  # treated as plain Fedora — system-level packages go through Homebrew (which
-  # the image provisions at first boot) instead of dnf. Check os-release for
-  # ID=bazzite before the generic dnf branch.
+  # Atomic/immutable Fedora derivatives (Bazzite, and sibling uBlue images:
+  # Bluefin, Aurora, etc.) plus plain Silverblue/Kinoite share one trait that
+  # actually matters here: /run/ostree-booted exists and the root fs is
+  # read-only, so `dnf install` would fail against it and system-level tools
+  # must go through Homebrew (which the image provisions at first boot)
+  # instead. On Bazzite `ID=bazzite`; on the siblings it's
+  # `ID=fedora`+`VARIANT_ID=silverblue|kinoite` or another uBlue ID — so gate
+  # on the standard rpm-ostree marker rather than a hardcoded ID string (it
+  # also covers future images). Check before the generic package-manager
+  # branches below.
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
-    if [ "${ID:-}" = "bazzite" ]; then
+    if [ "${ID:-}" = "bazzite" ] || \
+       { [ "${ID:-}" = "fedora" ] && { [ "${VARIANT_ID:-}" = "silverblue" ] || [ "${VARIANT_ID:-}" = "kinoite" ]; }; }; then
       echo "bazzite"
       return
     fi
+  fi
+  if [ -f /run/ostree-booted ]; then
+    echo "bazzite"
+    return
   fi
 
   if command -v apt-get >/dev/null 2>&1; then
@@ -63,9 +73,30 @@ PM=""
 pm_update() {
   case "$PM" in
     apt)    apt_update ;;
-    pacman) sudo pacman -Syu --noconfirm ;;
-    dnf)    sudo dnf check-update >/dev/null 2>&1 || true ;;
-    zypper) sudo zypper --non-interactive refresh ;;
+    pacman) if ! sudo pacman -Syu --noconfirm; then
+              # A mirror timeout/DNS blip fails mid-sync. Front load the
+              # clear message instead of letting set -e leave the user with
+              # an opaque exit code. Failed -Syu can leave a partial upgrade
+              # state, and installing with a partial system is dangerous, so
+              # this aborts rather than warn-and-continue.
+              echo "ERROR: pacman -Syu failed; re-run install.sh once your mirrors" >&2
+              echo "are reachable again (partial-upgrade states are unsafe to install onto)." >&2
+              exit 1
+            fi
+            ;;
+    dnf)    # exit 100 = "updates available" (expected, non-error); anything
+            # else is a real failure worth surfacing early instead of letting
+            # it explode later inside pm_install with no context.
+            sudo dnf check-update >/dev/null 2>&1 || {
+              local rc=$?
+              [ "$rc" -eq 100 ] || echo "WARNING: dnf check-update failed (exit $rc); continuing." >&2
+            }
+            ;;
+    zypper) if ! sudo zypper --non-interactive refresh; then
+              echo "WARNING: zypper refresh failed; continuing with whatever" >&2
+              echo "index it already had cached." >&2
+            fi
+            ;;
   esac
 }
 
@@ -75,7 +106,7 @@ pm_update() {
 pm_install() {
   case "$PM" in
     apt)
-      if ! sudo apt-get install -y "$@"; then
+      if ! apt_retry install -y "$@"; then
         echo "WARNING: apt install failed for: $*" >&2
         return 1
       fi
@@ -170,7 +201,7 @@ pm_has_candidate() {
       pacman -Si "$1" >/dev/null 2>&1
       ;;
     dnf)
-      dnf list available "$1" >/dev/null 2>&1
+      dnf list --available "$1" >/dev/null 2>&1
       ;;
     zypper)
       zypper --non-interactive search --match-exact --installed-only "$1" >/dev/null 2>&1
@@ -321,38 +352,44 @@ install_lazygit() {
 }
 
 # lf ships in the Debian/Ubuntu and Arch archives, but is NOT in Fedora's
-# official repos (only a third-party COPR). We install it via the manifest on
-# apt/pacman; on dnf grab the upstream release tarball, which extracts to a
-# single static binary named `lf`.
+# official repos (only a third-party COPR), and package sets vary/drift even
+# on apt (PikaOS tracks Debian testing/sid where lf can lag or vanish). Try
+# the distro package first at run time (like lazygit/topgrade/zsh), and fall
+# back to the upstream release tarball, which extracts to a single static
+# binary named `lf`, whenever the package manager has no candidate.
 install_lf() {
   command -v lf >/dev/null 2>&1 && return
 
-  # apt/pacman install it from the manifest, so only the upstream fallback
-  # (Fedora here, or any other dnf distro missing it) reaches this body.
-  if [ "$PM" = "dnf" ]; then
-    local machine target
-    machine="$(uname -m)"
-    case "$machine" in
-      x86_64|amd64)  target="amd64" ;;
-      aarch64|arm64) target="arm64" ;;
-      *)
-        echo "No upstream lf build for $machine — skipping." >&2
-        return
-        ;;
-    esac
-
-    echo "Installing lf ($target, upstream release)"
-    local tmp
-    tmp="$(mktemp -d)"
-    if curl -fsSL "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-${target}.tar.gz" \
-         | tar -xz -C "$tmp" lf; then
-      mkdir -p "$HOME/.local/bin"
-      install -m 0755 "$tmp/lf" "$HOME/.local/bin/lf"
-    else
-      echo "WARNING: lf download failed; skipping." >&2
-    fi
-    rm -rf "$tmp"
+  if [ -n "$PM" ] && pm_has_candidate lf; then
+    echo "Installing lf (package)"
+    pm_install lf || \
+      echo "WARNING: lf (package) install failed; continuing with the rest of the setup." >&2
+    return
   fi
+
+  # No distro candidate (Fedora/dnf, or apt/pacman on a release missing it).
+  local machine target
+  machine="$(uname -m)"
+  case "$machine" in
+    x86_64|amd64)  target="amd64" ;;
+    aarch64|arm64) target="arm64" ;;
+    *)
+      echo "No upstream lf build for $machine — skipping." >&2
+      return
+      ;;
+  esac
+
+  echo "Installing lf ($target, upstream release)"
+  local tmp
+  tmp="$(mktemp -d)"
+  if curl -fsSL "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-${target}.tar.gz" \
+       | tar -xz -C "$tmp" lf; then
+    mkdir -p "$HOME/.local/bin"
+    install -m 0755 "$tmp/lf" "$HOME/.local/bin/lf"
+  else
+    echo "WARNING: lf download failed; skipping." >&2
+  fi
+  rm -rf "$tmp"
 }
 
 # Not pm_has_candidate-checked: .zprofile hardcodes PYENV_ROOT to
@@ -436,7 +473,17 @@ install_zsh() {
 install_mac() {
   if ! command -v brew >/dev/null 2>&1; then
     echo "Installing Homebrew"
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Fetch the installer script as `script` first: `set -e` cannot catch a
+    # failing curl inside a command substitution (its status is discarded),
+    # so a dead network would have run `/bin/bash -c ""` and "succeeded"
+    # (issue #99).
+    local brew_install
+    if ! brew_install="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+      echo "ERROR: failed to download the Homebrew installer." >&2
+      echo "Check your network and re-run this script." >&2
+      exit 1
+    fi
+    NONINTERACTIVE=1 /bin/bash -c "$brew_install"
   fi
   for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
     [ -x "$brew_bin" ] && eval "$("$brew_bin" shellenv)" && break
@@ -473,8 +520,10 @@ install_mac() {
 
     # Package installation is the least reliable step here — a single broken
     # or disabled formula aborts the whole bundle. Don't let that take the
-    # rest of the install down with it.
-    if ! brew bundle install --no-upgrade --file="$brewfile"; then
+    # rest of the install down with it. --no-lock: brew otherwise writes
+    # Brewfile.lock.json next to the Brewfile (i.e. into this repo), leaving
+    # untracked noise in the checkout (issue #107).
+    if ! brew bundle install --no-upgrade --no-lock --file="$brewfile"; then
       echo "WARNING: some Brewfile entries failed to install; continuing." >&2
     fi
   fi
@@ -499,7 +548,28 @@ install_bazzite() {
   if ! command -v brew >/dev/null 2>&1; then
     echo "Homebrew not found; installing it (Bazzite's first-boot provisioning"
     echo "may not have completed)."
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Fetch the installer script as `script` first: checking the download
+    # lets a failed curl (proxy/DNS/github outage) abort with a clear error
+    # instead of `/bin/bash -c ""` silently "succeeding" (issue #99).
+    local brew_install
+    if ! brew_install="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+      echo "ERROR: failed to download the Homebrew installer." >&2
+      echo "Check your network and re-run this script." >&2
+      exit 1
+    fi
+    NONINTERACTIVE=1 /bin/bash -c "$brew_install"
+
+    # install_bazzite differs from install_mac here: brew wasn't on PATH at
+    # the top of this function, so a fresh install means the shellenv eval
+    # below never ran yet. Without this, every later `brew bundle`
+    # invocation fails with "command not found" (issue #94).
+    if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    else
+      echo "ERROR: Homebrew installed but /home/linuxbrew/.linuxbrew/bin/brew" >&2
+      echo "is missing; cannot continue with the Brewfile." >&2
+      exit 1
+    fi
   fi
 
   # Config first (same reasoning as install_mac — a fresh shell must not come
@@ -520,7 +590,7 @@ install_bazzite() {
   else
     echo "Missing Brewfile dependencies:"
     brew bundle check --no-upgrade --verbose --file="$brewfile" || true
-    if ! brew bundle install --no-upgrade --file="$brewfile"; then
+    if ! brew bundle install --no-upgrade --no-lock --file="$brewfile"; then
       echo "WARNING: some Brewfile entries failed to install; continuing." >&2
     fi
   fi
@@ -585,6 +655,10 @@ install_neovim() {
     sudo rm -rf "/opt/$target"
     sudo mv "$tmp/$target" /opt/
     sudo ln -sf "/opt/$target/bin/nvim" /usr/local/bin/nvim
+    # mv preserves the source SELinux context (extracted under mktemp's
+    # tmp_t), which on Fedora's enforcing policy stops nvim from running
+    # despite being executable. restorecon relabels to the /opt policy.
+    command -v restorecon >/dev/null 2>&1 && sudo restorecon -R "/opt/$target" /usr/local/bin/nvim
   else
     echo "WARNING: neovim download failed; skipping." >&2
   fi
@@ -668,7 +742,7 @@ install_signal() {
       "https://updates.signal.org/desktop/apt/keys.asc" \
       "deb [arch=amd64 signed-by=/etc/apt/keyrings/signal-desktop.gpg] https://updates.signal.org/desktop/apt xenial main"; then
       apt_update
-      sudo apt-get install -y signal-desktop || \
+      apt_retry install -y signal-desktop || \
         echo "WARNING: signal-desktop install failed; continuing with the rest of the setup." >&2
     else
       echo "WARNING: skipping signal-desktop (no apt repo added)." >&2
@@ -697,6 +771,34 @@ read_manifest() {
   done < <(sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' "$1")
 }
 
+# Retries an apt-get subcommand a few times. On a fresh Debian-family install
+# (PikaOS especially) the OS's own background update timers or a GUI
+# app-center can hold /var/lib/dpkg/lock-frontend right when this runs; a
+# short backoff clears most such cases instead of failing (or silently
+# continuing past a real failure) on the first attempt. Only for the "install"
+# family do we treat a finally-failed attempt as an error — "update" is
+# inherently best-effort (see apt_update below).
+apt_retry() {
+  local i
+  for i in 1 2 3 4; do
+    if sudo apt-get "$@"; then
+      return 0
+    fi
+    local rc=$?
+    # A busy lock is worth waiting out; a package/network error won't resolve
+    # by re-running, so don't spin on it.
+    if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+       ! fuser /var/lib/dpkg/lock >/dev/null 2>&1; then
+      return "$rc"
+    fi
+    if [ $i -lt 4 ]; then
+      echo "WARNING: apt-get $*: dpkg/apt lock busy (attempt $i/4); retrying in $((i * 3))s." >&2
+      sleep "$((i * 3))"
+    fi
+  done
+  return 1
+}
+
 # A single third-party repo with stale/desyncing mirrors (seen in practice:
 # PikaOS's own PPA returning a Release file whose recorded hash for its dep11
 # AppStream Components file doesn't match what's currently being served) makes
@@ -705,7 +807,7 @@ read_manifest() {
 # ones used instead"). Don't let `set -e` turn that into a hard stop for the
 # whole installer.
 apt_update() {
-  if ! sudo apt-get update; then
+  if ! apt_retry update; then
     echo "WARNING: apt-get update reported errors (see above); continuing with" >&2
     echo "whatever indices it did fetch or already had cached." >&2
   fi
@@ -807,7 +909,7 @@ install_linux() {
   # on every Linux PM path.
   pm_update
   if [ "$PM" = "apt" ]; then
-    sudo apt-get install -y curl gnupg ca-certificates tar unzip || \
+    apt_retry install -y curl gnupg ca-certificates tar unzip || \
       echo "WARNING: curl/gnupg/ca-certificates install failed; add_apt_repo calls" \
         "below may fail as a result. Continuing with the rest of the setup." >&2
   else
@@ -830,6 +932,18 @@ install_linux() {
   fi
 
   install_manifest "$packages_file"
+
+  # pkgfile (Arch) powers the oh-my-zsh command-not-found hook, but pacman
+  # doesn't populate its file-list database at install time — build it now
+  # and (optionally) make the systemd timer keep it current, so the hook
+  # works from the very first shell instead of failing until someone runs
+  # `pkgfile --update` by hand.
+  if [ "$PM" = "pacman" ] && command -v pkgfile >/dev/null 2>&1; then
+    sudo pkgfile --update || \
+      echo "WARNING: pkgfile --update failed; the zsh command-not-found hook will" >&2
+      echo "stay broken until it succeeds (e.g. after a network retry)." >&2
+    command -v systemctl >/dev/null 2>&1 && sudo systemctl enable --now pkgfile-update.timer 2>/dev/null || true
+  fi
 
   if want_desktop_packages; then
     install_manifest "$desktop_file"

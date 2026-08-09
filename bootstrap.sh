@@ -12,6 +12,38 @@ set -euo pipefail
 DOTFILES_REPO="jonstump/dotfiles"
 BACKUP_DIR="$HOME/.dotfiles-backup"
 
+# Runs an apt-get subcommand (e.g. `update` or `install -y git`) with the
+# same fault tolerance install.sh uses: retry while the dpkg/apt lock is held
+# (a near-certainty on a fresh PikaOS/Debian/Ubuntu install, where the OS's
+# own background update timers or a GUI app-center compete for it right after
+# first login), and treat a failed `update` as a warning rather than an error
+# — a single third-party repo with stale/dirty metadata (known on PikaOS: its
+# dep11 AppStream hash mismatch) makes apt-get update exit non-zero even when
+# the actual indices came through fine. What must NOT happen is `set -e`
+# killing this very first script over something apt itself calls non-fatal.
+# Callers decide what a still-failing "update" means (they pass it through the
+# normal `|| echo WARNING` path); a failing "install" returns its real rc.
+apt_guarded() {
+  local i
+  for i in 1 2 3 4 5; do
+    if sudo apt-get "$@"; then
+      return 0
+    fi
+    local rc=$?
+    # A busy lock is worth waiting out; any other error won't resolve by
+    # re-running, so return immediately and let the caller react.
+    if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+       ! fuser /var/lib/dpkg/lock >/dev/null 2>&1; then
+      return "$rc"
+    fi
+    if [ $i -lt 5 ]; then
+      echo "WARNING: apt-get $*: dpkg/apt lock busy (attempt $i/5); retrying in $((i * 3))s." >&2
+      sleep "$((i * 3))"
+    fi
+  done
+  return 1
+}
+
 # A genuinely fresh machine may not have git at all: macOS ships /usr/bin/git
 # as an xcrun stub that only works once the Command Line Tools are installed,
 # and git isn't in the default Ubuntu Desktop / Debian netinst package set.
@@ -30,7 +62,11 @@ ensure_git() {
   elif ! command -v git >/dev/null 2>&1; then
     echo "git not found — installing it first."
     if command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get update && sudo apt-get install -y git ca-certificates
+      # A failed install returns non-zero but must not kill the script (set
+      # -e); the "git is still unavailable" check below reports it cleanly.
+      apt_guarded update
+      apt_guarded install -y git ca-certificates || \
+        echo "WARNING: apt install of git failed; continuing so the check below can report it." >&2
     elif command -v dnf >/dev/null 2>&1; then
       sudo dnf install -y git
     elif command -v pacman >/dev/null 2>&1; then
