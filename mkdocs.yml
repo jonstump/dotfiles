@@ -1,5 +1,6 @@
 site_name: dotfiles
 site_description: Personal dotfiles managed with chezmoi
+site_url: https://jonstump.github.io/dotfiles/
 repo_url: https://github.com/jonstump/dotfiles
 theme:
   name: material
