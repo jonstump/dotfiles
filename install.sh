@@ -5,10 +5,12 @@
 # Mac: Homebrew + Brewfile.
 # Debian/Ubuntu-family Linux (apt): native apt packages from apt-packages.txt,
 #   plus upstream installers for the handful of tools apt doesn't reliably
-#   package (pyenv, nvm, oh-my-tmux, antidote — always upstream, since the
-#   dotfiles that load them only look in fixed non-apt locations — and
-#   lazygit/topgrade, which check apt first and only fall back to upstream if
-#   this distro/release doesn't package them).
+#   package (pyenv, nvm — always upstream, since the dotfiles that load them
+#   only look in fixed non-apt locations — and lazygit/topgrade, which check
+#   apt first and only fall back to upstream if this distro/release doesn't
+#   package them). oh-my-tmux and antidote are chezmoi git-repo externals now
+#   (home/.chezmoiexternal.toml), applied by `chezmoi apply` before this runs;
+#   install.sh only self-heals the tpm plugin checkout they previously owned.
 set -euo pipefail
 
 # Everything here is resolved relative to the script itself. This file lives
@@ -154,31 +156,17 @@ backup_aside() {
   mv "$path" "$backup"
 }
 
-install_oh_my_tmux() {
-  local target="$HOME/.local/share/tmux/oh-my-tmux"
-
-  # This used to only clone once, when the directory didn't exist yet — a
-  # broken clone (interrupted `git clone`, corrupted .git) left it "existing"
-  # forever, so every later run silently no-op'd instead of fixing it. Detect
-  # that and self-heal by backing up (never deleting) and re-cloning, the same
-  # way upstream's own install.sh does.
-  if [ -d "$target" ] && { ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1 || [ ! -f "$target/.tmux.conf" ]; }; then
-    echo "oh-my-tmux clone at $target looks broken; re-cloning."
-    backup_aside "$target"
-  fi
-
-  if [ ! -d "$target" ]; then
-    echo "Cloning oh-my-tmux -> $target"
-    git clone https://github.com/gpakosz/.tmux.git "$target"
-  fi
-
-  # tpm and the plugins it manages (vim-tmux-navigator, tmux-powerkit — see
-  # tmux.conf.local) live under ~/.config/tmux/plugins: oh-my-tmux resolves
-  # TMUX_PLUGIN_MANAGER_PATH next to tmux.conf, and this repo's tmux.conf
-  # lives under ~/.config/tmux rather than directly in $HOME. oh-my-tmux's own
-  # bootstrap only *creates* tpm if that directory is entirely absent — it
-  # never repairs one that exists but is broken, so a corrupted checkout means
-  # plugins silently stop installing/updating with no error shown anywhere.
+# tpm and the plugins it manages (vim-tmux-navigator, tmux-powerkit — see
+# tmux.conf.local) live under ~/.config/tmux/plugins: oh-my-tmux resolves
+# TMUX_PLUGIN_MANAGER_PATH next to tmux.conf, and this repo's tmux.conf
+# lives under ~/.config/tmux rather than directly in $HOME. oh-my-tmux's own
+# bootstrap only *creates* tpm if that directory is entirely absent — it
+# never repairs one that exists but is broken, so a corrupted checkout means
+# plugins silently stop installing/updating with no error shown anywhere.
+# (oh-my-tmux itself is now a chezmoi git-repo external — see
+# home/.chezmoiexternal.toml — but tpm is a separate checkout under
+# ~/.config/tmux/plugins, so its self-heal stays here.)
+repair_tmux_plugins() {
   local plugins_dir="$HOME/.config/tmux/plugins"
   if [ -d "$plugins_dir/tpm" ] && [ ! -x "$plugins_dir/tpm/tpm" ]; then
     echo "tpm checkout at $plugins_dir/tpm looks broken; resetting plugins."
@@ -214,32 +202,6 @@ pm_has_candidate() {
       return 1
       ;;
   esac
-}
-
-# zsh plugin manager, replacing antigen (#26). Cloned rather than installed as
-# a package because it's pure zsh and apt has no version of it across the
-# releases this repo targets, so one mechanism covers both platforms.
-# Not pm_has_candidate-checked like lazygit/topgrade below: .zshrc discovers
-# antidote by checking a fixed list of paths (Homebrew, or this clone at
-# ~/.antidote), not via `command -v`, so an apt package landing anywhere else
-# would silently go unused instead of being picked up.
-# .zshrc clones it too if it's missing; doing it here keeps the first shell
-# after install.sh from paying for it.
-install_antidote() {
-  local target="$HOME/.antidote"
-  # Skip if Homebrew already provides one — .zshrc prefers that over the
-  # clone, so cloning anyway would leave an unused copy that nothing ever
-  # updates. (Written as an if rather than `[ -e ] && return`: that form
-  # leaves the loop with a non-zero status on the last iteration, which is a
-  # live grenade under the `set -e` at the top of this file.)
-  if [ -e "${HOMEBREW_PREFIX:-}/share/antidote/antidote.zsh" ]; then
-    return 0
-  fi
-
-  if [ ! -d "$target" ]; then
-    echo "Cloning antidote -> $target"
-    git clone --depth=1 https://github.com/mattmc3/antidote.git "$target"
-  fi
 }
 
 # Not pm_has_candidate-checked: .zshrc only sources nvm from $HOME/.nvm/nvm.sh
@@ -497,11 +459,10 @@ install_mac() {
   done
 
   # Config setup first: it's cheap and reliable, and must not be skipped just
-  # because a package install failed. .zshrc execs into tmux on every
-  # interactive shell, so a missing oh-my-tmux clone leaves a fresh Mac in an
-  # unconfigured tmux with no obvious way out.
-  install_oh_my_tmux
-  install_antidote
+  # because a package install failed. oh-my-tmux and antidote themselves are
+  # chezmoi git-repo externals (home/.chezmoiexternal.toml) applied before
+  # this script runs, but the tpm plugin checkout still needs its self-heal.
+  repair_tmux_plugins
 
   # The Homebrew nvm formula's caveats say to create this yourself, and nothing
   # here did — so .zshrc's `[ -s "$NVM_DIR/nvm.sh" ]` failed, it fell through
@@ -580,9 +541,9 @@ install_bazzite() {
   fi
 
   # Config first (same reasoning as install_mac — a fresh shell must not come
-  # up in an unconfigured tmux).
-  install_oh_my_tmux
-  install_antidote
+  # up in an unconfigured tmux). oh-my-tmux/antidote are externals; keep only
+  # the tpm self-heal here.
+  repair_tmux_plugins
   mkdir -p "$HOME/.nvm"
 
   # The shared Brewfile: cask/mas entries are macOS-only and brew bundle
@@ -971,8 +932,7 @@ install_linux() {
   install_zsh
   install_nvm
   install_pyenv
-  install_oh_my_tmux
-  install_antidote
+  repair_tmux_plugins
   install_lf
 
   if want_desktop_packages; then
@@ -990,9 +950,9 @@ main() {
     apt|pacman|dnf|zypper) install_linux ;;
     *)
       # Still do the platform-independent part rather than skipping everything.
+      # (oh-my-tmux/antidote are chezmoi externals, run at apply — not here.)
       echo "Unrecognized OS/package manager — skipping package installation." >&2
-      install_oh_my_tmux
-      install_antidote
+      repair_tmux_plugins
       ;;
   esac
 
