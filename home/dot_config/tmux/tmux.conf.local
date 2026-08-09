@@ -495,9 +495,7 @@ run-shell -b 'command -v lazy-tmux >/dev/null 2>&1 && { lazy-tmux daemon --inter
 bind-key f if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
   'display-popup -w 75% -h 85% -E "lazy-tmux picker"' \
   'display-message "lazy-tmux is not installed"'
-bind-key C-s if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
-  'run-shell "lazy-tmux save --all --scrollback && tmux display-message \"All sessions saved successfully!\""' \
-  'display-message "lazy-tmux is not installed"'
+bind-key C-s run-shell 'command -v lazy-tmux >/dev/null 2>&1 && { lazy-tmux save --all --scrollback && tmux display-message "All sessions saved successfully!" || tmux display-message "lazy-tmux save failed"; } || tmux display-message "lazy-tmux is not installed"'
 
 # -- custom variables ----------------------------------------------------------
 
