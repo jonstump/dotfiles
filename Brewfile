@@ -49,12 +49,13 @@ brew "bison"
 # GNU database manager
 brew "gdbm"
 # Interpreted, interactive, object-oriented programming language
-# python@3.10 reaches upstream EOL ~Oct 2026; Homebrew tends to retire formulae
-# for EOL Pythons shortly after, which would make this line start failing
-# `brew bundle install`. That failure is already non-fatal (install_mac wraps
-# it in a soft-fail guard), but bump to a supported version when it happens.
 # (pyenv, not this formula, manages the Python versions you actually use.)
-brew "python@3.10"
+# python@3.10 reached upstream EOL Oct 2026 and Homebrew deprecates EOL
+# Pythons (python@3.10 deprecation was 2026-10-15), so this is pinned to the
+# next supported line. Re-bump when python@3.11 approaches EOL (Oct 2027);
+# install_mac already soft-fails brew bundle failures, so a retired formula
+# degrades to a warning rather than aborting.
+brew "python@3.11"
 # Linux/OSX/FreeBSD resource monitor
 brew "bpytop"
 # Resource monitor. C++ version and continuation of bashtop and bpytop
