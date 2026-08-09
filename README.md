@@ -212,8 +212,11 @@ panes, scrollback via the daemon and `<prefix> C-s`) is restored instead of
 starting blank. Restoring into an already-running session is a lazy-tmux
 no-op, so this only happens when `main` is first created; a missing or old
 `lazy-tmux`, or a restore failure, falls back to a plain empty session.
-`tmux.conf.local` also bootstraps on server start as a fallback for servers
-started outside `.zshrc`.
+`tmux.conf.local` also bootstraps on server start when no `main` session
+exists yet (covers servers started outside `.zshrc` that don't create `main`
+themselves, e.g. a bare `tmux start-server`); a server spawned directly as
+`main` skips it since the session already exists — use an `ExecStartPre`
+bootstrap in a systemd unit for that case.
 
 It has to stay last in the file: that shell becomes the tmux *server* on the
 first terminal, so anything set after it never reaches the server's
