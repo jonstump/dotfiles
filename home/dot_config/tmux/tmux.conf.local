@@ -471,7 +471,14 @@ set -g @plugin 'christoomey/vim-tmux-navigator'
 set -g @plugin 'fabioluciano/tmux-powerkit'
 
 # Basic configuration
-set -g @powerkit_plugins "datetime,battery,cpu,memory,git"
+# Battery is NOT in the PowerKit list: PowerKit's battery plugin renders a
+# red 0% when it can't read a battery (desktops, or laptops where its acpi
+# path reports 0 despite a real charge), and hiding it requires either hiding
+# healthy batteries too (show_only_on_threshold) or wrapper code. oh-my-tmux's
+# native battery (#{battery_status}/#{battery_bar}/#{battery_percentage})
+# already hides itself cleanly when no battery exists, so it covers laptops
+# while desktops stay clean.
+set -g @powerkit_plugins "datetime,cpu,memory,git"
 set -g @powerkit_theme "gruvbox"
 set -g @powerkit_theme_variant "dark"
 
