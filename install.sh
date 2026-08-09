@@ -196,7 +196,10 @@ pm_has_candidate() {
       dnf list --available "$1" >/dev/null 2>&1
       ;;
     zypper)
-      zypper --non-interactive search --match-exact --installed-only "$1" >/dev/null 2>&1
+      # Search both installed and available (like the apt/pacman/dnf
+      # branches); --installed-only would always miss the not-yet-installed
+      # tools every caller of pm_has_candidate is checking for.
+      zypper --non-interactive search --match-exact "$1" >/dev/null 2>&1
       ;;
     *)
       return 1
