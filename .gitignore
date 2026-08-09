@@ -1,0 +1,5 @@
+# brew bundle writes a lockfile next to the Brewfile it installs from by
+# default. install.sh passes --no-lock, but keep the backstop so a manual
+# `brew bundle --file=Brewfile.mas` (README) or an older run never leaves
+# install-state noise in the repo (issue #107).
+Brewfile*.lock.json
