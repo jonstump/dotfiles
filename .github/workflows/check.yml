@@ -1,0 +1,30 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lint/test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck zsh bats
+          # stylua via cargo release; skip if unavailable quickly, the lua
+          # check is best-effort locally too.
+          command -v stylua >/dev/null 2>&1 || true
+
+      - name: make lint
+        run: make lint
+
+      - name: make test
+        run: make test
