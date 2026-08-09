@@ -6,19 +6,7 @@ Linux, Fedora, openSUSE, and Bazzite. Managed with
 is chezmoi's *source* directory, applied on top of `$HOME` rather than
 symlinked or checked out directly onto it.
 
-The chezmoi source state lives under `home/` (see `.chezmoiroot`) so that
-non-dotfile assets — `Brewfile`, package manifests, `install.sh`, this
-README — can sit at the repo root without chezmoi trying to deploy them into
-`$HOME` too. File names under `home/` use chezmoi's naming attributes
-(`dot_zshrc` → `~/.zshrc`, `executable_dot_zsh_aliases` → `~/.zsh_aliases`,
-etc.) — see [chezmoi's source state docs](https://www.chezmoi.io/reference/source-state-attributes/)
-if a name under `home/` looks unfamiliar.
-
-📖 Full documentation: [dotfiles site](https://jonstump.github.io/dotfiles/) —
-per-distro install notes, day-to-day usage, what's-here, and tmux behavior.
-Design rationale lives in [`Architecture.md`](Architecture.md).
-
-## Install on a new machine
+## Quickstart
 
 **1. Bootstrap** — installs chezmoi itself, then has chezmoi clone this repo
 as its source directory and apply it onto `$HOME`. Safe to run on a machine
@@ -31,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/jonstump/dotfiles/main/bootstrap.sh
 ```
 
 Only `curl` is required up front — the script installs git itself if it's
-missing (chezmoi day-to-day usage wants a real git, even though chezmoi
+missing (chezmoi day-to-day usage below wants a real git, even though chezmoi
 can clone without one). On macOS that means kicking off the Xcode Command
 Line Tools install (git ships with them); accept the dialog, let it finish,
 then re-run the same command. On Linux it installs git via
@@ -49,5 +37,15 @@ $(chezmoi source-path)/../install.sh
 `install.sh` is safe to re-run; every step checks whether its target already
 exists before doing anything.
 
-Per-distro details (macOS, Debian/Ubuntu, Arch, Fedora, openSUSE, Bazzite):
-see the [docs site](https://jonstump.github.io/dotfiles/).
+Per-distro install details: [macOS](install/macos.md) ·
+[Debian/Ubuntu](install/debian-ubuntu.md) · [Arch](install/arch.md) ·
+[Fedora](install/fedora.md) · [openSUSE](install/opensuse.md) ·
+[Bazzite](install/bazzite.md)
+
+## Documentation
+
+- [Day-to-day usage](usage.md) — the `dotfiles` alias, common commands, updates
+- [What's here](whats-here.md) — target paths under `$HOME` and their sources
+- [Shell auto-tmux behavior](tmux.md) — the shared `main` session
+- [Architecture](https://github.com/jonstump/dotfiles/blob/main/Architecture.md)
+  — design rationale and decisions
