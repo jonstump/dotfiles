@@ -661,6 +661,12 @@ install_neovim() {
        | tar -xz -C "$tmp"; then
     sudo rm -rf "/opt/$target"
     sudo mv "$tmp/$target" /opt/
+    # mv preserves the source owner too: the tree was extracted into a
+    # user-owned mktemp dir, so even a sudo mv leaves /opt/nvim-* owned by
+    # the invoking user — who could then replace the binary the
+    # /usr/local/bin/nvim symlink points at, without ever needing sudo.
+    # Root-own the tree so /opt stays a properly system-owned location.
+    sudo chown -R root:root "/opt/$target"
     sudo ln -sf "/opt/$target/bin/nvim" /usr/local/bin/nvim
     # mv preserves the source SELinux context (extracted under mktemp's
     # tmp_t), which on Fedora's enforcing policy stops nvim from running
