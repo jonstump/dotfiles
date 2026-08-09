@@ -33,11 +33,11 @@ apt_guarded() {
     # A busy lock is worth waiting out; any other error won't resolve by
     # re-running, so return immediately and let the caller react. fuser must
     # run as root: the lock holder on a fresh install is a root-owned
-    # background updater, invisible to an unprivileged fuser.
-    if ! sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
-       ! sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1 && \
-       ! sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1 && \
-       ! sudo fuser /var/cache/apt/archives/lock >/dev/null 2>&1; then
+    # background updater, invisible to an unprivileged fuser. fuser accepts
+    # multiple names and exits 0 if any is held — one call covers all four
+    # apt/dpkg lock files.
+    if ! sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
+         /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; then
       return "$rc"
     fi
     if [ $i -lt 5 ]; then
