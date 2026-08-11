@@ -504,7 +504,12 @@ set -g @powerkit_theme_variant "dark"
 #
 # Note this is the tmux *server's* PATH, not a pane's. .zshrc's auto-tmux
 # block has to stay last in the file for ~/.local/bin to be on it.
-run-shell -b 'command -v lazy-tmux >/dev/null 2>&1 && { tmux has-session -t main 2>/dev/null || lazy-tmux bootstrap -session main >/dev/null 2>&1; lazy-tmux daemon --interval 3m --scrollback >/tmp/lazy-tmux.log 2>&1 || tmux display-message "lazy-tmux daemon already running"; }'
+#
+# The daemon log goes to a per-user path, not a shared /tmp file: a fixed
+# predictable world-writable path is a symlink-race target on multi-user
+# boxes (macOS has no fs.protected_symlinks mitigation), and every user's
+# tmux would truncate the same log anyway (issue #170).
+run-shell -b 'command -v lazy-tmux >/dev/null 2>&1 && { tmux has-session -t main 2>/dev/null || lazy-tmux bootstrap -session main >/dev/null 2>&1; lazy-tmux daemon --interval 3m --scrollback >"${XDG_RUNTIME_DIR:-$HOME/.cache}/lazy-tmux.log" 2>&1 || tmux display-message "lazy-tmux daemon already running"; }'
 bind-key f if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
   'display-popup -w 75% -h 85% -E "lazy-tmux picker"' \
   'display-message "lazy-tmux is not installed"'
