@@ -509,7 +509,15 @@ set -g @powerkit_theme_variant "dark"
 # predictable world-writable path is a symlink-race target on multi-user
 # boxes (macOS has no fs.protected_symlinks mitigation), and every user's
 # tmux would truncate the same log anyway (issue #170).
-run-shell -b 'command -v lazy-tmux >/dev/null 2>&1 && { tmux has-session -t main 2>/dev/null || lazy-tmux bootstrap -session main >/dev/null 2>&1; lazy-tmux daemon --interval 3m --scrollback >"${XDG_RUNTIME_DIR:-$HOME/.cache}/lazy-tmux.log" 2>&1 || tmux display-message "lazy-tmux daemon already running"; }'
+#
+# XDG_STATE_HOME (default ~/.local/state) is the spec home for logs and is
+# always a single stable path for a user: XDG_RUNTIME_DIR would send the
+# log to /run/user/... in desktop sessions but ~/.cache elsewhere on the
+# same machine, and its tmpfs is wiped at last logout. The dir is created
+# first — a missing dir would make the redirect fail, the whole command
+# fail, and the fallback message claim "daemon already running" when in
+# fact it never started (the exact misleading-error class fixed above).
+run-shell -b 'command -v lazy-tmux >/dev/null 2>&1 && { d="${XDG_STATE_HOME:-$HOME/.local/state}"; mkdir -p "$d"; tmux has-session -t main 2>/dev/null || lazy-tmux bootstrap -session main >/dev/null 2>&1; lazy-tmux daemon --interval 3m --scrollback >"$d/lazy-tmux.log" 2>&1 || tmux display-message "lazy-tmux daemon failed to start (see $d/lazy-tmux.log)"; }'
 bind-key f if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
   'display-popup -w 75% -h 85% -E "lazy-tmux picker"' \
   'display-message "lazy-tmux is not installed"'
