@@ -38,12 +38,16 @@ detect_os() {
   #
   # The path/marker are overridable via env for tests (a real CI box may not
   # be able to create /run/ostree-booted); they default to the real paths.
+  # Extract just the two fields needed (ID, VARIANT_ID) instead of sourcing
+  # the whole file: os-release defines generic names (NAME, VERSION,
+  # PRETTY_NAME, HOME_URL, ...) that would otherwise leak into this script's
+  # global namespace for the rest of the run (issue #179).
   if [ -f "${OS_RELEASE:-/etc/os-release}" ]; then
-    # shellcheck disable=SC1091
-    # shellcheck source=/etc/os-release
-    . "${OS_RELEASE:-/etc/os-release}"
-    if [ "${ID:-}" = "bazzite" ] || \
-       { [ "${ID:-}" = "fedora" ] && { [ "${VARIANT_ID:-}" = "silverblue" ] || [ "${VARIANT_ID:-}" = "kinoite" ]; }; }; then
+    local os_id os_variant
+    os_id="$(sed -n 's/^ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | tr -d '"')"
+    os_variant="$(sed -n 's/^VARIANT_ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | tr -d '"')"
+    if [ "$os_id" = "bazzite" ] || \
+       { [ "$os_id" = "fedora" ] && { [ "$os_variant" = "silverblue" ] || [ "$os_variant" = "kinoite" ]; }; }; then
       echo "bazzite"
       return
     fi
@@ -79,14 +83,32 @@ PM=""
 pm_update() {
   case "$PM" in
     apt)    apt_update ;;
-    pacman) if ! sudo pacman -Syu --noconfirm; then
+    pacman) # Two distinct common failures with different remedies: a mirror
+            # timeout/DNS blip vs a stale local archlinux-keyring (any box
+            # idle a few weeks hits the well-known PGP-signature error,
+            # "invalid or corrupted package"). Capture the output and real
+            # exit status (set +e guard keeps the capture from tripping
+            # set -e), then tell them apart for the message (issue #175).
+            pacman_out="$(set +e; sudo pacman -Syu --noconfirm 2>&1; echo "RC=$?")" || true
+            rc="${pacman_out##*RC=}"
+            pacman_out="${pacman_out%RC=*}"
+            if [ "$rc" -ne 0 ]; then
+              if printf '%s' "$pacman_out" | grep -qiE "pgp signature|invalid or corrupted package|failed to commit transaction"; then
+                echo "ERROR: pacman -Syu failed with a PGP/signature error (exit $rc) —" >&2
+                echo "almost always a stale local archlinux-keyring on a box that" >&2
+                echo "hasn't been updated recently. Fix it with:" >&2
+                echo "  sudo pacman -Sy archlinux-keyring --noconfirm" >&2
+                echo "then re-run install.sh." >&2
+                exit 1
+              fi
               # A mirror timeout/DNS blip fails mid-sync. Front load the
               # clear message instead of letting set -e leave the user with
               # an opaque exit code. Failed -Syu can leave a partial upgrade
               # state, and installing with a partial system is dangerous, so
               # this aborts rather than warn-and-continue.
-              echo "ERROR: pacman -Syu failed; re-run install.sh once your mirrors" >&2
-              echo "are reachable again (partial-upgrade states are unsafe to install onto)." >&2
+              echo "ERROR: pacman -Syu failed (exit $rc); re-run install.sh once your" >&2
+              echo "mirrors are reachable again (partial-upgrade states are unsafe" >&2
+              echo "to install onto)." >&2
               exit 1
             fi
             ;;
@@ -98,7 +120,7 @@ pm_update() {
               [ "$rc" -eq 100 ] || echo "WARNING: dnf check-update failed (exit $rc); continuing." >&2
             }
             ;;
-    zypper) if ! sudo zypper --non-interactive refresh; then
+    zypper) if ! zypper_retry refresh; then
               echo "WARNING: zypper refresh failed; continuing with whatever" >&2
               echo "index it already had cached." >&2
             fi
@@ -130,7 +152,7 @@ pm_install() {
       fi
       ;;
     zypper)
-      if ! sudo zypper --non-interactive install --no-recommends "$@"; then
+      if ! zypper_retry install --no-recommends "$@"; then
         echo "WARNING: zypper install failed for: $*" >&2
         return 1
       fi
@@ -167,7 +189,7 @@ backup_aside() {
 # home/.chezmoiexternal.toml — but tpm is a separate checkout under
 # ~/.config/tmux/plugins, so its self-heal stays here.)
 repair_tmux_plugins() {
-  local plugins_dir="$HOME/.config/tmux/plugins"
+  local plugins_dir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux/plugins"
   if [ -d "$plugins_dir/tpm" ] && [ ! -x "$plugins_dir/tpm/tpm" ]; then
     echo "tpm checkout at $plugins_dir/tpm looks broken; resetting plugins."
     backup_aside "$plugins_dir"
@@ -193,7 +215,12 @@ pm_has_candidate() {
       pacman -Si "$1" >/dev/null 2>&1
       ;;
     dnf)
-      dnf list --available "$1" >/dev/null 2>&1
+      # `dnf list --available` drops already-installed packages, so it would
+      # report a false negative for something present on this box — unlike
+      # apt/pacman/zypper, whose branches match regardless of install state.
+      # Check the rpm database first, then fall back to --available (issue
+      # #168).
+      rpm -q "$1" >/dev/null 2>&1 || dnf list --available "$1" >/dev/null 2>&1
       ;;
     zypper)
       # Search both installed and available (like the apt/pacman/dnf
@@ -257,7 +284,14 @@ install_nerd_font() {
   if curl -fsSL -o "$tmp/mononoki.zip" \
        https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Mononoki.zip \
      && unzip -oq "$tmp/mononoki.zip" -d "$dir"; then
-    command -v fc-cache >/dev/null 2>&1 && fc-cache -f >/dev/null
+    # Bare `command -v fc-cache && fc-cache -f` would make a failing
+    # fc-cache the last command of the branch and trip set -e silently
+    # (issue #167); guard it like every other fallible rename-helper call.
+    if command -v fc-cache >/dev/null 2>&1; then
+      fc-cache -f >/dev/null 2>&1 || \
+        echo "WARNING: fc-cache failed; the font install will apply after a" >&2
+        echo "re-login or fc-cache -f run by hand." >&2
+    fi
   else
     echo "WARNING: Nerd Font download failed; skipping." >&2
   fi
@@ -611,6 +645,10 @@ nvim_meets_lazyvim_min() {
   local ver
   ver="$(nvim --version 2>/dev/null | sed -n '1s/^NVIM v//p')"
   [ -n "$ver" ] || return 1
+  # Dev/nightly builds report e.g. "0.11.0-dev-658+g0acdb6b": strip anything
+  # from the first -/+ so the numeric compare sees "0.11.0", not a p[3] of
+  # "0-dev-658+g0acdb6b" whose numeric coercion is 0 (issue #177).
+  ver="${ver%%[-+]*}"
   awk -v v="$ver" 'BEGIN {
     split(v, p, ".")
     if (p[1]+0 > 0) exit 0
@@ -653,7 +691,13 @@ install_neovim() {
     # mv preserves the source SELinux context (extracted under mktemp's
     # tmp_t), which on Fedora's enforcing policy stops nvim from running
     # despite being executable. restorecon relabels to the /opt policy.
-    command -v restorecon >/dev/null 2>&1 && sudo restorecon -R "/opt/$target" /usr/local/bin/nvim
+    # Guard the whole chain: the bare `command -v ... && ...` form has the
+    # failing tool as its last command and would trip set -e with no message
+    # (issue #167).
+    if command -v restorecon >/dev/null 2>&1; then
+      sudo restorecon -R "/opt/$target" /usr/local/bin/nvim || \
+        echo "WARNING: restorecon failed; nvim may not run under SELinux enforcing." >&2
+    fi
   else
     echo "WARNING: neovim download failed; skipping." >&2
   fi
@@ -766,6 +810,36 @@ read_manifest() {
   done < <(sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d' "$1")
 }
 
+# Runs a zypper subcommand with the same lock-contention tolerance apt_retry
+# has: PackageKit holding the zypp database lock ("System management is locked
+# by the application with pid ...") right after first boot is a well-known
+# openSUSE KDE/GNOME state, directly analogous to the dpkg-lock race apt hits
+# on PikaOS. Detecting the lock from the exit text (zypper's own message)
+# avoids depending on fuser against a private zypp lock path (issue #165).
+zypper_retry() {
+  local i rc out
+  for i in 1 2 3 4; do
+    # Capture stdout+stderr and zypper's real exit status in one shot: a
+    # plain assignment's status would be clobbered by set -e, so run the
+    # capture in a subshell with -e off.
+    out="$(set +e; sudo zypper --non-interactive "$@" 2>&1; echo "RC=$?")" || true
+    rc="${out##*RC=}"
+    out="${out%RC=*}"
+    if [ "$rc" -eq 0 ]; then
+      return 0
+    fi
+    if ! printf '%s' "$out" | grep -qiE "system management is locked|another application|pid .* \(packagekitd\)|is locked"; then
+      return "$rc"
+    fi
+    if [ $i -lt 4 ]; then
+      echo "WARNING: zypper $*: zypp database locked (attempt $i/4);" >&2
+      echo "retrying in $((i * 3))s (PackageKit may still be starting)." >&2
+      sleep "$((i * 3))"
+    fi
+  done
+  return 1
+}
+
 # Retries an apt-get subcommand a few times. On a fresh Debian-family install
 # (PikaOS especially) the OS's own background update timers or a GUI
 # app-center can hold /var/lib/dpkg/lock-frontend right when this runs; a
@@ -776,7 +850,11 @@ read_manifest() {
 apt_retry() {
   local i
   for i in 1 2 3 4; do
-    if sudo apt-get "$@"; then
+    # DEBIAN_FRONTEND goes through the sudo boundary explicitly: install_linux
+    # exports it, but default sudoers env_reset strips it before apt-get sees
+    # it (issue #164). Passing it on the sudo command line covers every
+    # invocation including this retry loop.
+    if sudo DEBIAN_FRONTEND=noninteractive apt-get "$@"; then
       return 0
     fi
     local rc=$?
@@ -788,6 +866,16 @@ apt_retry() {
     # "nothing holds the lock" and skip the retry entirely. fuser accepts
     # multiple names and exits 0 if any is held — one call covers all four
     # apt/dpkg lock files.
+    if ! command -v fuser >/dev/null 2>&1; then
+      # psmisc missing: don't trust the missing fuser as "lock not busy" —
+      # assume busy and retry instead (issue #163).
+      if [ $i -lt 4 ]; then
+        echo "WARNING: apt-get $*: fuser (psmisc) missing; assuming dpkg/apt" >&2
+        echo "lock busy (attempt $i/4); retrying in $((i * 3))s." >&2
+        sleep "$((i * 3))"
+      fi
+      continue
+    fi
     if ! sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
          /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; then
       return "$rc"

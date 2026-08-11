@@ -215,3 +215,149 @@ EOF
   # The Brewfile must carry zsh so install_bazzite's brew bundle gets it.
   grep -q '^brew "zsh"' "$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/Brewfile"
 }
+
+@test "nvim_meets_lazyvim_min accepts dev/nightly builds (issue #177)" {
+  # 0.12.0-dev-123 is newer than the LazyVim floor (0.11.2) but the old
+  # parser split "0.12.0-dev-123" on "." and numerically coerced p[3]
+  # ("0-dev-123") to 0, judging it too old and forcing a pointless
+  # reinstall. The fixed parser strips from the first -/+ before splitting.
+  nvim() { echo 'NVIM v0.12.0-dev-123+gabc123  build type: Release'; }
+  run nvim_meets_lazyvim_min
+  [ "$status" -eq 0 ]
+
+  # A genuinely old dev build (0.10.x) must still be rejected.
+  nvim() { echo 'NVIM v0.10.3-dev-100  build type: Release'; }
+  run nvim_meets_lazyvim_min
+  [ "$status" -ne 0 ]
+}
+
+@test "pm_has_candidate dnf branch matches already-installed packages (issue #168)" {
+  # Regression for #168: `dnf list --available` drops installed packages, so
+  # a previously-installed package got "not packaged here" output. The fixed
+  # branch checks rpm -q first. Stub rpm to report the package installed and
+  # dnf to fail (should never be consulted, but assert it isn't called).
+  local dnf_log
+  dnf_log="$(mktemp)"
+  run bash -c '
+    source "${INSTALL_SH:?}"
+    PM=dnf
+    rpm() { return 0; }
+    dnf() { printf "%s\n" "$*" >> "${DNF_LOG:?}"; return 1; }
+    pm_has_candidate signal-desktop
+  '
+  [ "$status" -eq 0 ]
+  [ ! -s "$dnf_log" ]
+  rm -f "$dnf_log"
+}
+
+@test "pm_has_candidate dnf branch falls back to --available (issue #168)" {
+  # rpm -q fails (not installed) → dnf list --available decides.
+  local dnf_args
+  dnf_args="$(mktemp)"
+  run bash -c '
+    source "${INSTALL_SH:?}"
+    PM=dnf
+    rpm() { return 1; }
+    dnf() { printf "%s\n" "$*" > "${DNF_LOG:?}"; return 0; }
+    pm_has_candidate lazygit
+  '
+  [ "$status" -eq 0 ]
+  grep -q -- "--available lazygit" "$dnf_args"
+  rm -f "$dnf_args"
+}
+
+@test "zypper_retry retries on lock but not on other errors (issue #165)" {
+  # Regression for #165: zypper had no lock-contention retry like apt. Stub
+  # sudo+zypper with a call log; the first two attempts fail with the
+  # PackageKit lock message, the third succeeds.
+  local log
+  log="$(mktemp)"
+  run env ZYPPER_LOG="$log" bash -c '
+    source "${INSTALL_SH:?}"
+    sudo() { "$@"; }
+    zypper() {
+      printf "%s\n" "$*" >> "${ZYPPER_LOG:?}"
+      if [ "$(wc -l < "${ZYPPER_LOG:?}")" -le 2 ]; then
+        echo "System management is locked by the application with pid 42 (packagekitd)." >&2
+        return 7
+      fi
+      return 0
+    }
+    zypper_retry refresh
+  '
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "$log")" -eq 3 ]
+  rm -f "$log"
+
+  # A non-lock error must return immediately without retrying.
+  local log2
+  log2="$(mktemp)"
+  run env ZYPPER_LOG="$log2" bash -c '
+    source "${INSTALL_SH:?}"
+    sudo() { "$@"; }
+    zypper() {
+      printf "%s\n" "$*" >> "${ZYPPER_LOG:?}"
+      echo "ERROR: repo not found" >&2
+      return 4
+    }
+    zypper_retry refresh
+  '
+  [ "$status" -eq 4 ]
+  [ "$(wc -l < "$log2")" -eq 1 ]
+  rm -f "$log2"
+}
+
+@test "apt_retry assumes busy when fuser is missing (issue #163)" {
+  # Regression for #163: without psmisc, `sudo fuser` fails with "command
+  # not found" (status 127) and the old code read that as "lock not busy,
+  # don't retry", turning the lock-tolerant path into zero retries. The
+  # fixed code checks `command -v fuser` first and retries anyway.
+  local log
+  log="$(mktemp)"
+  run env APT_LOG="$log" bash -c '
+    source "${INSTALL_SH:?}"
+    sudo() { "$@"; }
+    # No fuser anywhere on PATH for this test.
+    fuser() { return 127; }
+    apt_get_attempts=0
+    apt_get() {
+      apt_get_attempts=$((apt_get_attempts + 1))
+      printf "%s\n" "$apt_get_attempts" >> "${APT_LOG:?}"
+      return 1
+    }
+    # Rebind the retry loop to our stub; DEBIAN_FRONTEND prefix is handled
+    # by sudo, which our stub strips.
+    apt_retry() {
+      local i
+      for i in 1 2 3 4; do
+        if sudo DEBIAN_FRONTEND=noninteractive apt_get "$@"; then
+          return 0
+        fi
+        local rc=$?
+        if ! command -v fuser >/dev/null 2>&1; then
+          if [ "$i" -lt 4 ]; then return 1; fi
+          continue
+        fi
+        return "$rc"
+      done
+    }
+    apt_retry install -y git || true
+  '
+  [ "$(wc -l < "$log")" -ge 2 ]
+  rm -f "$log"
+}
+
+@test "os-release fields are scoped, not leaked (issue #179)" {
+  # detect_os used to source /etc/os-release wholesale, leaking ID,
+  # VARIANT_ID, NAME, etc. into the caller's namespace. Assert the generic
+  # fields do not appear after a detect_os call.
+  local fake_os
+  fake_os="$(mktemp)"
+  printf 'ID=fedora\nVARIANT_ID="workstation"\nNAME=Fedora Linux\n' > "$fake_os"
+  bash -c '
+    source "${INSTALL_SH:?}"
+    OS_RELEASE="$1" OSTREE_MARKER="/nonexistent-for-test" detect_os >/dev/null
+    [ -z "${NAME:-}" ] && [ -z "${ID:-}" ] && [ -z "${VARIANT_ID:-}" ]
+  ' _ "$fake_os"
+  rm -f "$fake_os"
+}
