@@ -318,9 +318,23 @@ github_asset_digest() {
     body="$(curl -fsSL "https://api.github.com/repos/${2:?}/releases/latest")"
   fi
   printf '%s\n' "$body" | awk -v a="$asset" '
-    { gsub(/[",]/, "", $0) }
-    $1 == "name:" && $2 == a { found = 1 }
-    found && $1 == "digest:" { sub(/^sha256:/, "", $2); print $2; exit }
+    # The API emits each asset as a multi-line JSON object, so no fixed
+    # whitespace column can be trusted; parse quote-delimited key/value
+    # tokens instead.
+    BEGIN { RS = "\"" }
+    NR % 2 == 1 { next }      # odd records are between-quote whitespace
+    {
+      if (prev == "name") {
+        if ($0 == a) found = 1
+        prev = ""
+      } else if (prev == "digest") {
+        gsub(/^sha256:/, "", $0)
+        if (found) { print $0; exit }
+        prev = ""
+      } else {
+        prev = $0
+      }
+    }
   '
 }
 
