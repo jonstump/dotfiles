@@ -282,6 +282,65 @@ github_latest_version() {
 
 # LazyVim's health check looks for lazygit. Not in the Debian/Ubuntu archive
 # as of writing, but pm_has_candidate re-checks in case that has changed.
+#
+# ----- download-integrity helpers (issue #176) -----
+# Upstream release artifacts previously went from curl straight into place
+# with no integrity check beyond TLS. Some projects publish checksums
+# (lazygit's checksums.txt, the GitHub API's per-asset digest) and some
+# publish nothing (lf, nerd-fonts); verify where a published value exists
+# and hard-fail on mismatch, since these land on every user's PATH (and
+# neovim's does, root-owned under /opt).
+
+# Shasum of an already-downloaded file; portable across the supported
+# platforms (Linux coreutils, macOS shasum, openssl fallback).
+sha256_of() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$file" | awk '{print $NF}'
+  else
+    return 1
+  fi
+}
+
+# Extracts the sha256 hex digest (without the "sha256:" prefix) that the
+# GitHub Releases API publishes per asset. Accepts the release JSON on stdin
+# (test seam, mirroring github_latest_version) or fetches it for <owner>/<repo>.
+# Empty output + non-zero if the asset has no digest field.
+github_asset_digest() {
+  local asset="$1" body
+  if [ ! -t 0 ]; then
+    body="$(cat)"
+  else
+    body="$(curl -fsSL "https://api.github.com/repos/${2:?}/releases/latest")"
+  fi
+  printf '%s\n' "$body" | awk -v a="$asset" '
+    { gsub(/[",]/, "", $0) }
+    $1 == "name:" && $2 == a { found = 1 }
+    found && $1 == "digest:" { sub(/^sha256:/, "", $2); print $2; exit }
+  '
+}
+
+# Verifies a downloaded file against a published sha256. Nothing to verify
+# (no shasum tool at all) returns 1 for the caller to warn-and-skip; a real
+# mismatch returns 2 so the caller can abort the install of a corrupt or
+# mitm'd artifact rather than ship it onto the box.
+verify_sha256() {
+  local file="$1" expected="$2" actual
+  actual="$(sha256_of "$file")" || return 1
+  if [ "$actual" = "$expected" ]; then
+    return 0
+  fi
+  echo "ERROR: sha256 mismatch for $file" >&2
+  echo "  expected: $expected" >&2
+  echo "  actual:   $actual" >&2
+  return 2
+}
+# ----- end download-integrity helpers -----
+
 install_lazygit() {
   command -v lazygit >/dev/null 2>&1 && return
 
@@ -295,8 +354,8 @@ install_lazygit() {
   local machine target
   machine="$(uname -m)"
   case "$machine" in
-    x86_64|amd64)  target="Linux_x86_64" ;;
-    aarch64|arm64) target="Linux_arm64" ;;
+    x86_64|amd64)  target="linux_x86_64" ;;
+    aarch64|arm64) target="linux_arm64" ;;
     *)
       echo "No upstream lazygit build for $machine — skipping." >&2
       return
@@ -311,12 +370,25 @@ install_lazygit() {
   fi
 
   echo "Installing lazygit $version ($target, upstream release)"
-  local tmp
+  local tmp asset expected actual_checksums
   tmp="$(mktemp -d)"
-  if curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v${version}/lazygit_${version}_${target}.tar.gz" \
-       | tar -xz -C "$tmp" lazygit; then
-    mkdir -p "$HOME/.local/bin"
-    install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
+  asset="lazygit_${version}_${target}.tar.gz"
+  if curl -fsSL -o "$tmp/$asset" \
+      "https://github.com/jesseduffield/lazygit/releases/download/v${version}/$asset"; then
+    # lazygit publishes checksums.txt per release; verify before extracting
+    # (issue #176). A failed checksum fetch is treated as a hard failure too:
+    # we never arrange to skip verification silently.
+    if ! actual_checksums="$(curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v${version}/checksums.txt")" \
+         || ! expected="$(printf '%s\n' "$actual_checksums" | awk -v a="$asset" '$2 == a {print $1; exit}')" \
+         || [ -z "$expected" ]; then
+      echo "WARNING: could not fetch/parse lazygit checksums.txt for $asset; skipping install." >&2
+    elif verify_sha256 "$tmp/$asset" "$expected"; then
+      tar -xz -C "$tmp" -f "$tmp/$asset" lazygit
+      mkdir -p "$HOME/.local/bin"
+      install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
+    else
+      echo "WARNING: lazygit checksum verification failed; skipping install." >&2
+    fi
   else
     echo "WARNING: lazygit download failed; skipping." >&2
   fi
@@ -352,9 +424,19 @@ install_lf() {
   esac
 
   echo "Installing lf ($target, upstream release)"
-  local tmp
+  local tmp version
   tmp="$(mktemp -d)"
-  if curl -fsSL "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-${target}.tar.gz" \
+  # Pin to a resolved version instead of the /releases/latest/download/
+  # redirect: lf publishes no checksums, but a fixed tag makes an
+  # unexpected-artifact swap detectable by the human, and the URL can't
+  # silently change content between two runs (issue #176).
+  version="$(github_latest_version gokcehan/lf)"
+  if [ -z "$version" ]; then
+    echo "WARNING: could not resolve the latest lf version; skipping." >&2
+    rm -rf "$tmp"
+    return
+  fi
+  if curl -fsSL "https://github.com/gokcehan/lf/releases/download/${version}/lf-linux-${target}.tar.gz" \
        | tar -xz -C "$tmp" lf; then
     mkdir -p "$HOME/.local/bin"
     install -m 0755 "$tmp/lf" "$HOME/.local/bin/lf"
@@ -637,10 +719,29 @@ install_neovim() {
   esac
 
   echo "Installing neovim ($target, upstream release)"
-  local tmp
+  local tmp version expected
   tmp="$(mktemp -d)"
-  if curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/${target}.tar.gz" \
-       | tar -xz -C "$tmp"; then
+  # Resolve the version and the published per-asset sha256 from the GitHub
+  # API first, then download THAT version (not "latest", which could drift
+  # between the digest lookup and the download) and verify before installing
+  # root-owned into /opt (issue #176). neovim publishes no checksums.txt;
+  # the API digest is the published integrity value.
+  version="$(github_latest_version neovim/neovim)"
+  if [ -z "$version" ]; then
+    echo "WARNING: could not resolve the latest neovim version; skipping." >&2
+    rm -rf "$tmp"
+    return
+  fi
+  expected="$(github_asset_digest "${target}.tar.gz" neovim/neovim)"
+  if [ -z "$expected" ]; then
+    echo "WARNING: no published digest for ${target}.tar.gz; skipping install." >&2
+    rm -rf "$tmp"
+    return
+  fi
+  if curl -fsSL -o "$tmp/${target}.tar.gz" \
+      "https://github.com/neovim/neovim/releases/download/v${version}/${target}.tar.gz" \
+    && verify_sha256 "$tmp/${target}.tar.gz" "$expected"; then
+    tar -xz -C "$tmp" -f "$tmp/${target}.tar.gz"
     sudo rm -rf "/opt/$target"
     sudo mv "$tmp/$target" /opt/
     # mv preserves the source owner too: the tree was extracted into a
@@ -655,7 +756,7 @@ install_neovim() {
     # despite being executable. restorecon relabels to the /opt policy.
     command -v restorecon >/dev/null 2>&1 && sudo restorecon -R "/opt/$target" /usr/local/bin/nvim
   else
-    echo "WARNING: neovim download failed; skipping." >&2
+    echo "WARNING: neovim download or checksum verification failed; skipping." >&2
   fi
   rm -rf "$tmp"
 }

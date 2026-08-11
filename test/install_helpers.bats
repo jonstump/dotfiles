@@ -215,3 +215,44 @@ EOF
   # The Brewfile must carry zsh so install_bazzite's brew bundle gets it.
   grep -q '^brew "zsh"' "$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/Brewfile"
 }
+
+@test "sha256_of and verify_sha256 accept/reject (issue #176)" {
+  local f
+  f="$(mktemp)"
+  printf 'integrity test payload\n' > "$f"
+  local digest
+  digest="$(sha256_of "$f")"
+  [ -n "$digest" ]
+
+  run verify_sha256 "$f" "$digest"
+  [ "$status" -eq 0 ]
+
+  run verify_sha256 "$f" "0000000000000000000000000000000000000000000000000000000000000000"
+  [ "$status" -eq 2 ]
+  rm -f "$f"
+}
+
+@test "github_asset_digest extracts the per-asset sha256 (issue #176)" {
+  local json
+  json='{
+    "assets": [
+      { "name": "nvim-linux-x86_64.tar.gz", "digest": "sha256:012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" }
+    ]
+  }'
+  run bash -c 'printf "%s" "$1" | source "${INSTALL_SH:?}"; github_asset_digest nvim-linux-x86_64.tar.gz' _ "$json"
+  [ "$status" -eq 0 ]
+  [ "$output" = "012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" ]
+
+  # Missing asset: empty output.
+  run bash -c 'printf "%s" "$1" | source "${INSTALL_SH:?}"; github_asset_digest nope.tar.gz' _ "$json"
+  [ -z "$output" ]
+}
+
+@test "lazygit upstream assets use the lowercase linux_ prefix (issue #176)" {
+  # The upstream release naming is lazygit_<ver>_linux_<arch>.tar.gz; the
+  # installer's target must match so both the download URL and checksums.txt
+  # lookup resolve (a prior capital-L target 404'd and never verified).
+  local arch_block
+  arch_block="$(sed -n '/x86_64|amd64)  target="linux_x86_64"/p' "$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)/install.sh")"
+  [ -n "$arch_block" ]
+}
