@@ -239,12 +239,12 @@ EOF
       { "name": "nvim-linux-x86_64.tar.gz", "digest": "sha256:012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" }
     ]
   }'
-  run bash -c 'printf "%s" "$1" | source "${INSTALL_SH:?}"; github_asset_digest nvim-linux-x86_64.tar.gz' _ "$json"
+  run bash -c 'source "${INSTALL_SH:?}"; printf "%s" "$1" | github_asset_digest nvim-linux-x86_64.tar.gz' _ "$json"
   [ "$status" -eq 0 ]
   [ "$output" = "012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" ]
 
   # Missing asset: empty output.
-  run bash -c 'printf "%s" "$1" | source "${INSTALL_SH:?}"; github_asset_digest nope.tar.gz' _ "$json"
+  run bash -c 'source "${INSTALL_SH:?}"; printf "%s" "$1" | github_asset_digest nope.tar.gz' _ "$json"
   [ -z "$output" ]
 }
 
