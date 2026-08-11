@@ -25,5 +25,7 @@ xclip
 wl-clipboard
 
 # Signal (instant messaging) is installed by install_signal() in install.sh,
-# not listed here — on Arch it's an AUR package, which install.sh doesn't
-# install. Install signal-desktop from the AUR yourself if you want it.
+# which checks pm_has_candidate at run time — signal-desktop moved into the
+# official extra repo, so it now installs on current Arch. Kept out of the
+# list so the runtime check stays the single source of truth (package
+# availability drifts; see Architecture.md on lazygit/topgrade).

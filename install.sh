@@ -408,7 +408,7 @@ install_topgrade() {
 # when the package manager genuinely has no candidate, not just a stale index.
 # The upstream release tarball (unlike a raw git checkout) ships a
 # pre-generated ./configure, so this only needs a C compiler and ncurses
-# headers — build-essential and libncursesw5-dev from apt-packages.txt.
+# headers — build-essential and libncurses-dev from apt-packages.txt.
 install_zsh() {
   command -v zsh >/dev/null 2>&1 && return
 
@@ -718,9 +718,9 @@ flatpak_override_for() {
 # check like an ordinary package — it has to decide whether it's needed before
 # deciding whether to add that repo. amd64-only upstream: Signal only ships an
 # amd64 apt build, so on arm64 boxen (Pi/Ampere/Asahi/UTM) don't even try.
-# On pacman/dnf/zypper Signal is not in the official repos (AUR / Copr /
-# third-party repo respectively), so it's skipped with a warning rather than
-# installed.
+# On pacman/dnf/zypper Signal may or may not be in the official repos (it
+# moved into Arch's extra repo; Fedora/openSUSE still need third-party
+# repos), so the pm_has_candidate branch below decides at run time.
 install_signal() {
   # Flatpak-override check is apt-only, matching install_manifest.
   if [ "$PM" = "apt" ]; then

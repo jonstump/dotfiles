@@ -53,7 +53,9 @@ nmap
 syncthing
 wireguard-tools
 ansible
-topgrade
+# topgrade is deliberately NOT listed here: like the other manifests, it's
+# left to install_topgrade()'s package-first/pipx-fallback logic (the header
+# above already names it among the separately-installed tools).
 # file — `file --mime-type` in .config/lf/lfrc; part of the base set usually,
 # list it explicitly since that isn't guaranteed on minimal installs.
 file
