@@ -8,4 +8,6 @@ fall back to an upstream tarball (lazygit) or `pipx` (topgrade) otherwise;
 `zsh` is pacman-installed (it isn't missing from Arch's repo). GUI apps
 live in `pacman-packages-desktop.txt` (same `want_desktop_packages` gate).
 Signal is checked at run time via `pm_has_candidate` — it moved into the
-official `extra` repo, so `install_signal()` installs it on current Arch.
+official `extra` repo, so `install_signal()` installs it on current Arch
+when desktop packages are enabled. Package availability drifts, so the
+runtime check, not this prose, is the source of truth.
