@@ -73,8 +73,11 @@ apt_guarded() {
 is_atomic_fedora() {
   local id variant
   if [ -f "${OS_RELEASE:-/etc/os-release}" ]; then
-    id="$(sed -n 's/^ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | tr -d '"')"
-    variant="$(sed -n 's/^VARIANT_ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | tr -d '"')"
+    # os-release values may be bare, single- or double-quoted (the spec
+    # allows ID='fedora'); strip any single level of quote so the case
+    # comparison below sees the bare value.
+    id="$(sed -n 's/^ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | sed "s/^['\"]//; s/['\"]$//")"
+    variant="$(sed -n 's/^VARIANT_ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | sed "s/^['\"]//; s/['\"]$//")"
     case "$id" in
       bazzite) return 0 ;;
       fedora)
@@ -97,15 +100,30 @@ ensure_git() {
       # "accept the dialog" again goes nowhere, so distinguish by testing
       # whether a dialog can even be triggered (exit 0) vs the immediate
       # failure (issue #178).
-      if /usr/bin/xcode-select --install; then
+      local xcode_err
+      xcode_err="$(mktemp)"
+      if /usr/bin/xcode-select --install 2>"$xcode_err"; then
         echo "Accept the dialog, wait for it to finish, then re-run this script."
+      elif grep -qi "already installed" "$xcode_err"; then
+        # `-p` failed but the tools are actually present: `--install` exits
+        # non-zero with "Command line tools are already installed", typically
+        # because the active developer dir points at a removed Xcode.app.
+        # Re-pointing is the fix; nuking the CLT receipt would be destructive
+        # and pointless here (issue #178).
+        echo "Xcode Command Line Tools appear already installed, but" >&2
+        echo "xcode-select -p can't find them (stale developer dir)." >&2
+        echo "Try: sudo xcode-select --reset   then re-run this script." >&2
+        rm -f "$xcode_err"
+        exit 1
       else
         echo "ERROR: xcode-select --install failed without showing a dialog." >&2
         echo "This usually means a stale or partial Command Line Tools receipt." >&2
         echo "Recovery: sudo rm -rf /Library/Developer/CommandLineTools" >&2
         echo "then re-run: xcode-select --install" >&2
+        rm -f "$xcode_err"
         exit 1
       fi
+      rm -f "$xcode_err"
       exit 1
     fi
   elif command -v git >/dev/null 2>&1; then
@@ -225,7 +243,15 @@ main() {
 # bats test-suite does, mirroring install.sh's guard — see Architecture.md
 # decision 12) defines the helpers and globals but must not start
 # installing anything.
-if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+#
+# Note the fallback: when bash reads a script from a pipe — the documented
+# `curl -fsSL …/bootstrap.sh | bash` path, which runs before any local clone
+# exists — BASH_SOURCE is empty and $0 is "bash", so comparing only
+# `BASH_SOURCE[0]` would silently *never* run main (verified regression:
+# exit 0, no output, nothing installed). Falling back to $0 keeps the
+# curl-pipe path working while still skipping main when the file is sourced
+# (bats: BASH_SOURCE[0] is the real path, different from $0).
+if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
   main
 fi
 

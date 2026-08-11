@@ -75,15 +75,20 @@ setup() {
   # silently overwrite the one surviving copy of the user's pre-dotfiles
   # config. The scheme matches install.sh's backup_aside().
   [ -n "$BACKUP_DIR" ]
-  [[ "$BACKUP_DIR" =~ ^$HOME/.dotfiles-backup-[0-9]{14}$ ]]
+  # The HOME prefix is compared literally (no regex metachar issue), the
+  # suffix is the timestamp pattern.
+  [ "$BACKUP_DIR" != "${BACKUP_DIR#"$HOME"/}" ]
+  [[ "$BACKUP_DIR" =~ \.dotfiles-backup-[0-9]{14}$ ]]
 
-  # Two sources in fresh HOME dirs must produce distinct backup paths.
-  local home1 home2
-  home1="$(mktemp -d)"
-  home2="$(mktemp -d)"
+  # The anti-clobber property is two runs into the SAME $HOME producing two
+  # surviving backups (a different HOME would make the paths differ even
+  # with the old fixed name — the bug the previous test failed to catch).
+  local home
+  home="$(mktemp -d)"
   local d1 d2
-  d1="$(HOME="$home1" bash -c 'source "$1"; printf "%s" "$BACKUP_DIR"' _ "${BOOTSTRAP_SH:?}")"
-  d2="$(HOME="$home2" bash -c 'source "$1"; printf "%s" "$BACKUP_DIR"' _ "${BOOTSTRAP_SH:?}")"
+  d1="$(HOME="$home" bash -c 'source "$1"; printf "%s" "$BACKUP_DIR"' _ "${BOOTSTRAP_SH:?}")"
+  sleep 1   # timestamp resolution: two runs must land in different seconds
+  d2="$(HOME="$home" bash -c 'source "$1"; printf "%s" "$BACKUP_DIR"' _ "${BOOTSTRAP_SH:?}")"
   [ "$d1" != "$d2" ]
-  rm -rf "$home1" "$home2"
+  rm -rf "$home"
 }
