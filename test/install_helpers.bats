@@ -107,19 +107,43 @@ EOF
   true
 }
 
-@test "github_latest_version extracts tag from API response" {
-  # Pipe a canned GitHub API response in (the function reads stdin when
-  # it's not a terminal, so no network is involved).
-  result="$(printf '%s' '{"tag_name": "v0.1.14", "name": "x"}' | github_latest_version foo/bar)"
-  [ "$result" = "0.1.14" ]
+@test "github_latest_release extracts tag and asset digests (issue #176)" {
+  # GITHUB_API_BODY feeds the canned API response (test seam), so no
+  # network and no rate limit. Expect tag + "<asset> <sha256-hex>" lines.
+  local json
+  json='{
+    "tag_name": "v0.1.14",
+    "assets": [
+      { "name": "nvim-linux-x86_64.tar.gz", "digest": "sha256:012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" }
+    ]
+  }'
+  result="$(GITHUB_API_BODY="$json" github_latest_release foo/bar)"
+  [ "$(printf '%s\n' "$result" | head -1)" = "0.1.14" ]
+  [ "$(printf '%s\n' "$result" | sed -n '2p')" = "nvim-linux-x86_64.tar.gz 012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" ]
 }
 
-@test "github_latest_version strips a leading v and handles no tag" {
-  result="$(printf '%s' '{"tag_name": "3.2.1"}' | github_latest_version foo/bar)"
-  [ "$result" = "3.2.1" ]
+@test "github_latest_release strips a leading v and handles no tag" {
+  result="$(GITHUB_API_BODY='{"tag_name": "3.2.1"}' github_latest_release foo/bar)"
+  [ "$(printf '%s\n' "$result" | head -1)" = "3.2.1" ]
 
-  result="$(printf '%s' '{"message": "Not Found"}' | github_latest_version foo/bar)"
+  result="$(GITHUB_API_BODY='{"message": "Not Found"}' github_latest_release foo/bar)"
   [ -z "$result" ]
+}
+
+@test "github_latest_release drops null digests instead of garbage (issue #176)" {
+  # GitHub returns "digest": null for pre-digest-era assets. That must not
+  # be parsed into a bogus "expected" checksum — the asset is simply not
+  # emitted (and the caller's hex gate would catch it anyway).
+  local json
+  json='{
+    "tag_name": "v0.12.4",
+    "assets": [
+      { "name": "old.tar.gz", "digest": null, "download_count": 5 }
+    ]
+  }'
+  result="$(GITHUB_API_BODY="$json" github_latest_release neovim/neovim)"
+  # Only the tag line; no asset line at all.
+  [ "$(printf '%s\n' "$result" | wc -l | tr -d ' ')" = "1" ]
 }
 
 @test "detect_os returns bazzite when os-release is silverblue (before dnf)" {
@@ -230,22 +254,6 @@ EOF
   run verify_sha256 "$f" "0000000000000000000000000000000000000000000000000000000000000000"
   [ "$status" -eq 2 ]
   rm -f "$f"
-}
-
-@test "github_asset_digest extracts the per-asset sha256 (issue #176)" {
-  local json
-  json='{
-    "assets": [
-      { "name": "nvim-linux-x86_64.tar.gz", "digest": "sha256:012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" }
-    ]
-  }'
-  run bash -c 'source "${INSTALL_SH:?}"; printf "%s" "$1" | github_asset_digest nvim-linux-x86_64.tar.gz' _ "$json"
-  [ "$status" -eq 0 ]
-  [ "$output" = "012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628" ]
-
-  # Missing asset: empty output.
-  run bash -c 'source "${INSTALL_SH:?}"; printf "%s" "$1" | github_asset_digest nope.tar.gz' _ "$json"
-  [ -z "$output" ]
 }
 
 @test "lazygit upstream assets use the lowercase linux_ prefix (issue #176)" {

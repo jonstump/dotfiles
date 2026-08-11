@@ -268,16 +268,61 @@ install_nerd_font() {
 # stripped. Needed because some projects put the version in their asset
 # filenames, so /releases/latest/download/ can't be used directly the way it
 # can for neovim.
-github_latest_version() {
-  # Accept the API response on stdin (test seam / pipes) or fetch it.
+# Fetches the latest GitHub release for <owner>/<repo> once and prints its
+# tag (leading "v" stripped) followed by "<asset> <sha256-hex>" lines for
+# every asset that carries a digest. Callers capture the whole output in one
+# variable so a single API hit serves both the version and the checksum —
+# the two values can never drift apart (no TOCTOU between independent
+# /releases/latest calls), and it halves API rate-limit usage.
+#
+# GITHUB_API_BODY, when set, supplies the release JSON instead of the
+# network (test seam, and an escape hatch if the unauthenticated rate limit
+# is exhausted). jq is used when present (it's in every package manifest);
+# the fallback parser only handles the exact API shape and hex-validates, so
+# a malformed response degrades to "no digest" rather than a garbage value.
+github_latest_release() {
   local body
-  if [ ! -t 0 ]; then
-    body="$(cat)"
+  if [ -n "${GITHUB_API_BODY-}" ]; then
+    body="$GITHUB_API_BODY"
   else
     body="$(curl -fsSL "https://api.github.com/repos/$1/releases/latest")"
   fi
+
+  if command -v jq >/dev/null 2>&1; then
+    # %s.strftime escapes are avoided; jq strips the leading "v" and prints
+    # tag + "name digest" pairs in one pass. A missing digest prints nothing
+    # for that asset (jq emits null → empty), so callers see only real ones.
+    # (.assets // []) tolerates release bodies with no assets field at all.
+    printf '%s\n' "$body" | jq -r '
+      ((.tag_name // "") | sub("^v"; "")),
+      ((.assets // [])[] | select(.digest != null)
+        | .name + " " + (.digest | sub("^sha256:"; "")))
+    '
+    return
+  fi
+
+  # Fallback (no jq on a pre-manifest box): the API emits each asset as a
+  # multi-line object, so quote-token parsing is enough — with the caveat
+  # that an odd number of escaped quotes earlier in the body would break
+  # parity. Conservative: only accept digests that are exactly 64 hex chars,
+  # which turns any such misparse into "no digest" (skip) instead of a
+  # bogus checksum.
   printf '%s\n' "$body" \
     | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
+  printf '%s\n' "$body" | awk '
+    function hexok(s) { return (s ~ /^[0-9a-f]{64}$/) ? 1 : 0 }
+    BEGIN { RS="\"" }
+    NR % 2 == 1 { next }
+    {
+      if (prev == "name") { name=$0; prev=""; next }
+      if (prev == "digest") {
+        gsub(/^sha256:/, "", $0)
+        if (hexok($0)) print name " " $0
+        prev=""; next
+      }
+      prev = $0
+    }
+  '
 }
 
 # LazyVim's health check looks for lazygit. Not in the Debian/Ubuntu archive
@@ -304,38 +349,6 @@ sha256_of() {
   else
     return 1
   fi
-}
-
-# Extracts the sha256 hex digest (without the "sha256:" prefix) that the
-# GitHub Releases API publishes per asset. Accepts the release JSON on stdin
-# (test seam, mirroring github_latest_version) or fetches it for <owner>/<repo>.
-# Empty output + non-zero if the asset has no digest field.
-github_asset_digest() {
-  local asset="$1" body
-  if [ ! -t 0 ]; then
-    body="$(cat)"
-  else
-    body="$(curl -fsSL "https://api.github.com/repos/${2:?}/releases/latest")"
-  fi
-  printf '%s\n' "$body" | awk -v a="$asset" '
-    # The API emits each asset as a multi-line JSON object, so no fixed
-    # whitespace column can be trusted; parse quote-delimited key/value
-    # tokens instead.
-    BEGIN { RS = "\"" }
-    NR % 2 == 1 { next }      # odd records are between-quote whitespace
-    {
-      if (prev == "name") {
-        if ($0 == a) found = 1
-        prev = ""
-      } else if (prev == "digest") {
-        gsub(/^sha256:/, "", $0)
-        if (found) { print $0; exit }
-        prev = ""
-      } else {
-        prev = $0
-      }
-    }
-  '
 }
 
 # Verifies a downloaded file against a published sha256. Nothing to verify
@@ -376,8 +389,9 @@ install_lazygit() {
       ;;
   esac
 
-  local version
-  version="$(github_latest_version jesseduffield/lazygit)"
+  local version release_info
+  release_info="$(github_latest_release jesseduffield/lazygit)"
+  version="$(printf '%s\n' "$release_info" | head -1)"
   if [ -z "$version" ]; then
     echo "WARNING: could not resolve the latest lazygit version; skipping." >&2
     return
@@ -401,7 +415,7 @@ install_lazygit() {
       mkdir -p "$HOME/.local/bin"
       install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
     else
-      echo "WARNING: lazygit checksum verification failed; skipping install." >&2
+      echo "WARNING: lazygit checksum verification failed ($asset); skipping install." >&2
     fi
   else
     echo "WARNING: lazygit download failed; skipping." >&2
@@ -444,7 +458,7 @@ install_lf() {
   # redirect: lf publishes no checksums, but a fixed tag makes an
   # unexpected-artifact swap detectable by the human, and the URL can't
   # silently change content between two runs (issue #176).
-  version="$(github_latest_version gokcehan/lf)"
+  version="$(github_latest_release gokcehan/lf | head -1)"
   if [ -z "$version" ]; then
     echo "WARNING: could not resolve the latest lf version; skipping." >&2
     rm -rf "$tmp"
@@ -733,21 +747,27 @@ install_neovim() {
   esac
 
   echo "Installing neovim ($target, upstream release)"
-  local tmp version expected
+  local tmp version release_info expected
   tmp="$(mktemp -d)"
-  # Resolve the version and the published per-asset sha256 from the GitHub
-  # API first, then download THAT version (not "latest", which could drift
-  # between the digest lookup and the download) and verify before installing
-  # root-owned into /opt (issue #176). neovim publishes no checksums.txt;
-  # the API digest is the published integrity value.
-  version="$(github_latest_version neovim/neovim)"
+  # Resolve the version and the published per-asset sha256 from a single
+  # GitHub API fetch, then download THAT version (not "latest", which could
+  # drift between the digest lookup and the download) and verify before
+  # installing root-owned into /opt (issue #176). One fetch means version
+  # and digest can never disagree (no TOCTOU), and cuts API rate usage in
+  # half. neovim publishes no checksums.txt; the API digest is the only
+  # published integrity value.
+  release_info="$(github_latest_release neovim/neovim)"
+  version="$(printf '%s\n' "$release_info" | head -1)"
   if [ -z "$version" ]; then
     echo "WARNING: could not resolve the latest neovim version; skipping." >&2
     rm -rf "$tmp"
     return
   fi
-  expected="$(github_asset_digest "${target}.tar.gz" neovim/neovim)"
-  if [ -z "$expected" ]; then
+  expected="$(printf '%s\n' "$release_info" | awk -v a="${target}.tar.gz" '$1 == a {print $2; exit}')"
+  # Hex-validate: a `"digest": null` or a parser hiccup must not be treated
+  # as a real checksum (it would either fail the verify misleadingly or,
+  # worse, pass a non-hex garbage string through as "matching").
+  if ! printf '%s' "$expected" | grep -Eq '^[0-9a-f]{64}$'; then
     echo "WARNING: no published digest for ${target}.tar.gz; skipping install." >&2
     rm -rf "$tmp"
     return
