@@ -254,7 +254,7 @@ EOF
   # rpm -q fails (not installed) → dnf list --available decides.
   local dnf_args
   dnf_args="$(mktemp)"
-  run bash -c '
+  run env DNF_LOG="$dnf_args" bash -c '
     source "${INSTALL_SH:?}"
     PM=dnf
     rpm() { return 1; }
@@ -316,17 +316,30 @@ EOF
   log="$(mktemp)"
   run env APT_LOG="$log" bash -c '
     source "${INSTALL_SH:?}"
-    sudo() { "$@"; }
-    # No fuser anywhere on PATH for this test.
-    fuser() { return 127; }
+    # Strip the DEBIAN_FRONTEND prefix sudo carries (real sudo applies it
+    # for the command; our stub just skips it) and pass the rest through.
+    sudo() {
+      if [ "${1%%=*}" = "DEBIAN_FRONTEND" ]; then shift; fi
+      "$@"
+    }
+    # No fuser anywhere on PATH for this test: macOS ships /usr/bin/fuser,
+    # and a `fuser()` function would still satisfy `command -v fuser`, so
+    # stub the command builtin to report it missing (psmisc truly absent).
+    command() {
+      if [ "${1-}" = "-v" ] && [ "${2-}" = "fuser" ]; then
+        return 127
+      fi
+      builtin command "$@"
+    }
     apt_get_attempts=0
     apt_get() {
       apt_get_attempts=$((apt_get_attempts + 1))
       printf "%s\n" "$apt_get_attempts" >> "${APT_LOG:?}"
       return 1
     }
-    # Rebind the retry loop to our stub; DEBIAN_FRONTEND prefix is handled
-    # by sudo, which our stub strips.
+    # Rebind the retry loop to our stub: mirror the real function (fuser
+    # missing → still retry, since psmisc absence must not read as "lock
+    # not busy", issue #163). Sleep is skipped to keep the test fast.
     apt_retry() {
       local i
       for i in 1 2 3 4; do
@@ -335,11 +348,11 @@ EOF
         fi
         local rc=$?
         if ! command -v fuser >/dev/null 2>&1; then
-          if [ "$i" -lt 4 ]; then return 1; fi
           continue
         fi
         return "$rc"
       done
+      return 1
     }
     apt_retry install -y git || true
   '
