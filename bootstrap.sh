@@ -26,7 +26,10 @@ BACKUP_DIR="$HOME/.dotfiles-backup"
 apt_guarded() {
   local i
   for i in 1 2 3 4 5; do
-    if sudo apt-get "$@"; then
+    # DEBIAN_FRONTEND is passed on the sudo command line, not inherited from
+    # the environment: default sudoers env_reset strips exported vars before
+    # apt-get sees them (issue #164).
+    if sudo DEBIAN_FRONTEND=noninteractive apt-get "$@"; then
       return 0
     fi
     local rc=$?
@@ -35,7 +38,25 @@ apt_guarded() {
     # run as root: the lock holder on a fresh install is a root-owned
     # background updater, invisible to an unprivileged fuser. fuser accepts
     # multiple names and exits 0 if any is held — one call covers all four
-    # apt/dpkg lock files.
+    # apt/dpkg lock files. If fuser itself is missing (psmisc not installed —
+    # this is the very first apt call ever made on a fresh box), don't trust
+    # its failure as "lock not busy": assume busy and retry (issue #163).
+    if ! command -v fuser >/dev/null 2>&1; then
+      # psmisc missing — this is the very first apt call ever made on a
+      # fresh box. Don't trust fuser's failure as "lock not busy": assume
+      # busy and retry (issue #163). But without fuser we can't tell a
+      # busy lock from a genuinely failing apt, so cap the blind retries
+      # at 2 attempts instead of burning the full 5 × 3s+ backoff.
+      if [ $i -ge 2 ]; then
+        echo "WARNING: apt-get $*: fuser (psmisc) missing; assuming dpkg/apt" >&2
+        echo "lock busy, but giving up after $i attempts." >&2
+        return 1
+      fi
+      echo "WARNING: apt-get $*: fuser (psmisc) missing; assuming dpkg/apt" >&2
+      echo "lock busy (attempt $i/2); retrying in $((i * 3))s." >&2
+      sleep "$((i * 3))"
+      continue
+    fi
     if ! sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
          /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; then
       return "$rc"
@@ -69,8 +90,12 @@ ensure_git() {
       # A failed install returns non-zero but must not kill the script (set
       # -e); the "git is still unavailable" check below reports it cleanly.
       apt_guarded update
-      apt_guarded install -y git ca-certificates || \
-        echo "WARNING: apt install of git failed; continuing so the check below can report it." >&2
+      # psmisc ships fuser, which apt_guarded relies on to tell a busy
+      # dpkg/apt lock from a real failure. Without it this bootstrap run is
+      # permanently in the "assume busy, retry" degraded path, so install it
+      # alongside git (issue #163).
+      apt_guarded install -y git ca-certificates psmisc || \
+        echo "WARNING: apt install of git/psmisc failed; continuing so the check below can report it." >&2
     elif command -v dnf >/dev/null 2>&1; then
       sudo dnf install -y git
     elif command -v pacman >/dev/null 2>&1; then

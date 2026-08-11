@@ -78,3 +78,7 @@ libxml2-dev
 libxmlsec1-dev
 libffi-dev
 liblzma-dev
+# psmisc provides fuser, which install.sh/bootstrap.sh rely on to detect
+# dpkg-lock contention for the apt retry loop (issue #163). Without it the
+# retry logic silently degrades to a single attempt.
+psmisc
