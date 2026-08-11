@@ -12,7 +12,7 @@ skipped rather than failing the install.
 - `zsh` itself is apt-installed when available, but on a derivative distro
   whose `sources.list` doesn't carry it (seen on PikaOS), it's built from
   the upstream release tarball instead — `build-essential` and
-  `libncursesw5-dev` from `apt-packages.txt` are the only extra
+  `libncurses-dev` from `apt-packages.txt` are the only extra
   dependencies it needs, and the resulting `/usr/local/bin/zsh` is added to
   `/etc/shells` so `chsh` (below) still picks it up.
 - GUI apps live in `apt-packages-desktop.txt` and are only installed when a
