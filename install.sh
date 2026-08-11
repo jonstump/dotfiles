@@ -268,20 +268,106 @@ install_nerd_font() {
 # stripped. Needed because some projects put the version in their asset
 # filenames, so /releases/latest/download/ can't be used directly the way it
 # can for neovim.
-github_latest_version() {
-  # Accept the API response on stdin (test seam / pipes) or fetch it.
+# Fetches the latest GitHub release for <owner>/<repo> once and prints its
+# tag (leading "v" stripped) followed by "<asset> <sha256-hex>" lines for
+# every asset that carries a digest. Callers capture the whole output in one
+# variable so a single API hit serves both the version and the checksum —
+# the two values can never drift apart (no TOCTOU between independent
+# /releases/latest calls), and it halves API rate-limit usage.
+#
+# GITHUB_API_BODY, when set, supplies the release JSON instead of the
+# network (test seam, and an escape hatch if the unauthenticated rate limit
+# is exhausted). jq is used when present (it's in every package manifest);
+# the fallback parser only handles the exact API shape and hex-validates, so
+# a malformed response degrades to "no digest" rather than a garbage value.
+github_latest_release() {
   local body
-  if [ ! -t 0 ]; then
-    body="$(cat)"
+  if [ -n "${GITHUB_API_BODY-}" ]; then
+    body="$GITHUB_API_BODY"
   else
     body="$(curl -fsSL "https://api.github.com/repos/$1/releases/latest")"
   fi
+
+  if command -v jq >/dev/null 2>&1; then
+    # %s.strftime escapes are avoided; jq strips the leading "v" and prints
+    # tag + "name digest" pairs in one pass. A missing digest prints nothing
+    # for that asset (jq emits null → empty), so callers see only real ones.
+    # (.assets // []) tolerates release bodies with no assets field at all.
+    printf '%s\n' "$body" | jq -r '
+      ((.tag_name // "") | sub("^v"; "")),
+      ((.assets // [])[] | select(.digest != null)
+        | .name + " " + (.digest | sub("^sha256:"; "")))
+    '
+    return
+  fi
+
+  # Fallback (no jq on a pre-manifest box): the API emits each asset as a
+  # multi-line object, so quote-token parsing is enough — with the caveat
+  # that an odd number of escaped quotes earlier in the body would break
+  # parity. Conservative: only accept digests that are exactly 64 hex chars,
+  # which turns any such misparse into "no digest" (skip) instead of a
+  # bogus checksum.
   printf '%s\n' "$body" \
     | sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -1
+  printf '%s\n' "$body" | awk '
+    function hexok(s) { return (s ~ /^[0-9a-f]{64}$/) ? 1 : 0 }
+    BEGIN { RS="\"" }
+    NR % 2 == 1 { next }
+    {
+      if (prev == "name") { name=$0; prev=""; next }
+      if (prev == "digest") {
+        gsub(/^sha256:/, "", $0)
+        if (hexok($0)) print name " " $0
+        prev=""; next
+      }
+      prev = $0
+    }
+  '
 }
 
 # LazyVim's health check looks for lazygit. Not in the Debian/Ubuntu archive
 # as of writing, but pm_has_candidate re-checks in case that has changed.
+#
+# ----- download-integrity helpers (issue #176) -----
+# Upstream release artifacts previously went from curl straight into place
+# with no integrity check beyond TLS. Some projects publish checksums
+# (lazygit's checksums.txt, the GitHub API's per-asset digest) and some
+# publish nothing (lf, nerd-fonts); verify where a published value exists
+# and hard-fail on mismatch, since these land on every user's PATH (and
+# neovim's does, root-owned under /opt).
+
+# Shasum of an already-downloaded file; portable across the supported
+# platforms (Linux coreutils, macOS shasum, openssl fallback).
+sha256_of() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$file" | awk '{print $NF}'
+  else
+    return 1
+  fi
+}
+
+# Verifies a downloaded file against a published sha256. Nothing to verify
+# (no shasum tool at all) returns 1 for the caller to warn-and-skip; a real
+# mismatch returns 2 so the caller can abort the install of a corrupt or
+# mitm'd artifact rather than ship it onto the box.
+verify_sha256() {
+  local file="$1" expected="$2" actual
+  actual="$(sha256_of "$file")" || return 1
+  if [ "$actual" = "$expected" ]; then
+    return 0
+  fi
+  echo "ERROR: sha256 mismatch for $file" >&2
+  echo "  expected: $expected" >&2
+  echo "  actual:   $actual" >&2
+  return 2
+}
+# ----- end download-integrity helpers -----
+
 install_lazygit() {
   command -v lazygit >/dev/null 2>&1 && return
 
@@ -295,28 +381,42 @@ install_lazygit() {
   local machine target
   machine="$(uname -m)"
   case "$machine" in
-    x86_64|amd64)  target="Linux_x86_64" ;;
-    aarch64|arm64) target="Linux_arm64" ;;
+    x86_64|amd64)  target="linux_x86_64" ;;
+    aarch64|arm64) target="linux_arm64" ;;
     *)
       echo "No upstream lazygit build for $machine — skipping." >&2
       return
       ;;
   esac
 
-  local version
-  version="$(github_latest_version jesseduffield/lazygit)"
+  local version release_info
+  release_info="$(github_latest_release jesseduffield/lazygit)"
+  version="$(printf '%s\n' "$release_info" | head -1)"
   if [ -z "$version" ]; then
     echo "WARNING: could not resolve the latest lazygit version; skipping." >&2
     return
   fi
 
   echo "Installing lazygit $version ($target, upstream release)"
-  local tmp
+  local tmp asset expected actual_checksums
   tmp="$(mktemp -d)"
-  if curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v${version}/lazygit_${version}_${target}.tar.gz" \
-       | tar -xz -C "$tmp" lazygit; then
-    mkdir -p "$HOME/.local/bin"
-    install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
+  asset="lazygit_${version}_${target}.tar.gz"
+  if curl -fsSL -o "$tmp/$asset" \
+      "https://github.com/jesseduffield/lazygit/releases/download/v${version}/$asset"; then
+    # lazygit publishes checksums.txt per release; verify before extracting
+    # (issue #176). A failed checksum fetch is treated as a hard failure too:
+    # we never arrange to skip verification silently.
+    if ! actual_checksums="$(curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v${version}/checksums.txt")" \
+         || ! expected="$(printf '%s\n' "$actual_checksums" | awk -v a="$asset" '$2 == a {print $1; exit}')" \
+         || [ -z "$expected" ]; then
+      echo "WARNING: could not fetch/parse lazygit checksums.txt for $asset; skipping install." >&2
+    elif verify_sha256 "$tmp/$asset" "$expected"; then
+      tar -xz -C "$tmp" -f "$tmp/$asset" lazygit
+      mkdir -p "$HOME/.local/bin"
+      install -m 0755 "$tmp/lazygit" "$HOME/.local/bin/lazygit"
+    else
+      echo "WARNING: lazygit checksum verification failed ($asset); skipping install." >&2
+    fi
   else
     echo "WARNING: lazygit download failed; skipping." >&2
   fi
@@ -352,9 +452,19 @@ install_lf() {
   esac
 
   echo "Installing lf ($target, upstream release)"
-  local tmp
+  local tmp version
   tmp="$(mktemp -d)"
-  if curl -fsSL "https://github.com/gokcehan/lf/releases/latest/download/lf-linux-${target}.tar.gz" \
+  # Pin to a resolved version instead of the /releases/latest/download/
+  # redirect: lf publishes no checksums, but a fixed tag makes an
+  # unexpected-artifact swap detectable by the human, and the URL can't
+  # silently change content between two runs (issue #176).
+  version="$(github_latest_release gokcehan/lf | head -1)"
+  if [ -z "$version" ]; then
+    echo "WARNING: could not resolve the latest lf version; skipping." >&2
+    rm -rf "$tmp"
+    return
+  fi
+  if curl -fsSL "https://github.com/gokcehan/lf/releases/download/${version}/lf-linux-${target}.tar.gz" \
        | tar -xz -C "$tmp" lf; then
     mkdir -p "$HOME/.local/bin"
     install -m 0755 "$tmp/lf" "$HOME/.local/bin/lf"
@@ -637,10 +747,35 @@ install_neovim() {
   esac
 
   echo "Installing neovim ($target, upstream release)"
-  local tmp
+  local tmp version release_info expected
   tmp="$(mktemp -d)"
-  if curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/${target}.tar.gz" \
-       | tar -xz -C "$tmp"; then
+  # Resolve the version and the published per-asset sha256 from a single
+  # GitHub API fetch, then download THAT version (not "latest", which could
+  # drift between the digest lookup and the download) and verify before
+  # installing root-owned into /opt (issue #176). One fetch means version
+  # and digest can never disagree (no TOCTOU), and cuts API rate usage in
+  # half. neovim publishes no checksums.txt; the API digest is the only
+  # published integrity value.
+  release_info="$(github_latest_release neovim/neovim)"
+  version="$(printf '%s\n' "$release_info" | head -1)"
+  if [ -z "$version" ]; then
+    echo "WARNING: could not resolve the latest neovim version; skipping." >&2
+    rm -rf "$tmp"
+    return
+  fi
+  expected="$(printf '%s\n' "$release_info" | awk -v a="${target}.tar.gz" '$1 == a {print $2; exit}')"
+  # Hex-validate: a `"digest": null` or a parser hiccup must not be treated
+  # as a real checksum (it would either fail the verify misleadingly or,
+  # worse, pass a non-hex garbage string through as "matching").
+  if ! printf '%s' "$expected" | grep -Eq '^[0-9a-f]{64}$'; then
+    echo "WARNING: no published digest for ${target}.tar.gz; skipping install." >&2
+    rm -rf "$tmp"
+    return
+  fi
+  if curl -fsSL -o "$tmp/${target}.tar.gz" \
+      "https://github.com/neovim/neovim/releases/download/v${version}/${target}.tar.gz" \
+    && verify_sha256 "$tmp/${target}.tar.gz" "$expected"; then
+    tar -xz -C "$tmp" -f "$tmp/${target}.tar.gz"
     sudo rm -rf "/opt/$target"
     sudo mv "$tmp/$target" /opt/
     # mv preserves the source owner too: the tree was extracted into a
@@ -655,7 +790,7 @@ install_neovim() {
     # despite being executable. restorecon relabels to the /opt policy.
     command -v restorecon >/dev/null 2>&1 && sudo restorecon -R "/opt/$target" /usr/local/bin/nvim
   else
-    echo "WARNING: neovim download failed; skipping." >&2
+    echo "WARNING: neovim download or checksum verification failed; skipping." >&2
   fi
   rm -rf "$tmp"
 }
