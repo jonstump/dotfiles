@@ -238,7 +238,7 @@ EOF
   # dnf to fail (should never be consulted, but assert it isn't called).
   local dnf_log
   dnf_log="$(mktemp)"
-  run bash -c '
+  run env DNF_LOG="$dnf_log" bash -c '
     source "${INSTALL_SH:?}"
     PM=dnf
     rpm() { return 0; }
@@ -308,55 +308,49 @@ EOF
 }
 
 @test "apt_retry assumes busy when fuser is missing (issue #163)" {
-  # Regression for #163: without psmisc, `sudo fuser` fails with "command
+  # Regression for #163: without psmisc, "sudo fuser" fails with "command
   # not found" (status 127) and the old code read that as "lock not busy,
-  # don't retry", turning the lock-tolerant path into zero retries. The
-  # fixed code checks `command -v fuser` first and retries anyway.
+  # dont retry", turning the lock-tolerant path into zero retries. The
+  # fix (checked into install.sh) is command -v fuser first, and retry
+  # anyway. This exercises the REAL sourced apt_retry; only fusers
+  # existence is faked away (via the command builtin, matching a
+  # psmisc-less box — a fuser() function would still satisfy command -v).
+  # sleep is stubbed so the retry backoff doesnt cost real seconds.
   local log
   log="$(mktemp)"
   run env APT_LOG="$log" bash -c '
     source "${INSTALL_SH:?}"
-    # Strip the DEBIAN_FRONTEND prefix sudo carries (real sudo applies it
-    # for the command; our stub just skips it) and pass the rest through.
-    sudo() {
-      if [ "${1%%=*}" = "DEBIAN_FRONTEND" ]; then shift; fi
-      "$@"
-    }
-    # No fuser anywhere on PATH for this test: macOS ships /usr/bin/fuser,
-    # and a `fuser()` function would still satisfy `command -v fuser`, so
-    # stub the command builtin to report it missing (psmisc truly absent).
+    # Report fuser missing even though macOS/CI may ship it.
     command() {
       if [ "${1-}" = "-v" ] && [ "${2-}" = "fuser" ]; then
         return 127
       fi
       builtin command "$@"
     }
+    # sudo() strips the DEBIAN_FRONTEND prefix (real sudo applies it for
+    # the command; our stub just skips it) and runs the rest.
+    sudo() {
+      if [ "${1%%=*}" = "DEBIAN_FRONTEND" ]; then shift; fi
+      "$@"
+    }
+    # apt-get always fails; log each attempt.
     apt_get_attempts=0
     apt_get() {
       apt_get_attempts=$((apt_get_attempts + 1))
       printf "%s\n" "$apt_get_attempts" >> "${APT_LOG:?}"
       return 1
     }
-    # Rebind the retry loop to our stub: mirror the real function (fuser
-    # missing → still retry, since psmisc absence must not read as "lock
-    # not busy", issue #163). Sleep is skipped to keep the test fast.
-    apt_retry() {
-      local i
-      for i in 1 2 3 4; do
-        if sudo DEBIAN_FRONTEND=noninteractive apt_get "$@"; then
-          return 0
-        fi
-        local rc=$?
-        if ! command -v fuser >/dev/null 2>&1; then
-          continue
-        fi
-        return "$rc"
-      done
-      return 1
-    }
+    # Rebind the retry loops apt-get calls to the log via a redefined
+    # apt-get (install.sh calls "sudo ... apt-get", which dispatches to a
+    # function of that name in this shell — it shadows the binary, and
+    # the REAL apt_retry loop is left untouched).
+    apt-get() { apt_get "$@"; }
+    sleep() { :; }
     apt_retry install -y git || true
   '
-  [ "$(wc -l < "$log")" -ge 2 ]
+  # The real apt_retry with fuser missing must retry (the #163 bug gave up
+  # after one), and the blind-retry cap stops at 2 attempts.
+  [ "$(wc -l < "$log")" -eq 2 ]
   rm -f "$log"
 }
 

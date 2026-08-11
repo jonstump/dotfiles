@@ -44,8 +44,11 @@ detect_os() {
   # global namespace for the rest of the run (issue #179).
   if [ -f "${OS_RELEASE:-/etc/os-release}" ]; then
     local os_id os_variant
-    os_id="$(sed -n 's/^ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | tr -d '"')"
-    os_variant="$(sed -n 's/^VARIANT_ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | tr -d '"')"
+    # os-release values may be bare, single- or double-quoted (the spec
+    # allows ID='fedora'); strip one level so the match below sees the bare
+    # value (the sed+tr form previously only handled double quotes).
+    os_id="$(sed -n 's/^ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | sed "s/^['\"]//; s/['\"]$//")"
+    os_variant="$(sed -n 's/^VARIANT_ID=//p' "${OS_RELEASE:-/etc/os-release}" | head -1 | sed "s/^['\"]//; s/['\"]$//")"
     if [ "$os_id" = "bazzite" ] || \
        { [ "$os_id" = "fedora" ] && { [ "$os_variant" = "silverblue" ] || [ "$os_variant" = "kinoite" ]; }; }; then
       echo "bazzite"
@@ -81,6 +84,7 @@ PM=""
 # unsupported partial-upgrade state, a bare -Sy is documented as unsafe; dnf
 # uses -y).
 pm_update() {
+  local pacman_out rc
   case "$PM" in
     apt)    apt_update ;;
     pacman) # Two distinct common failures with different remedies: a mirror
@@ -102,10 +106,14 @@ pm_update() {
                 exit 1
               fi
               # A mirror timeout/DNS blip fails mid-sync. Front load the
-              # clear message instead of letting set -e leave the user with
-              # an opaque exit code. Failed -Syu can leave a partial upgrade
-              # state, and installing with a partial system is dangerous, so
-              # this aborts rather than warn-and-continue.
+              # clear message (and the actual pacman complaints) instead of
+              # letting set -e leave the user with an opaque exit code.
+              # Failed -Syu can leave a partial upgrade state, and installing
+              # with a partial system is dangerous, so this aborts rather
+              # than warn-and-continue.
+              if [ -n "$pacman_out" ]; then
+                printf 'pacman said:\n%s\n' "$pacman_out" >&2
+              fi
               echo "ERROR: pacman -Syu failed (exit $rc); re-run install.sh once your" >&2
               echo "mirrors are reachable again (partial-upgrade states are unsafe" >&2
               echo "to install onto)." >&2
@@ -288,9 +296,10 @@ install_nerd_font() {
     # fc-cache the last command of the branch and trip set -e silently
     # (issue #167); guard it like every other fallible rename-helper call.
     if command -v fc-cache >/dev/null 2>&1; then
-      fc-cache -f >/dev/null 2>&1 || \
+      fc-cache -f >/dev/null 2>&1 || {
         echo "WARNING: fc-cache failed; the font install will apply after a" >&2
         echo "re-login or fc-cache -f run by hand." >&2
+      }
     fi
   else
     echo "WARNING: Nerd Font download failed; skipping." >&2
@@ -828,7 +837,18 @@ zypper_retry() {
     if [ "$rc" -eq 0 ]; then
       return 0
     fi
-    if ! printf '%s' "$out" | grep -qiE "system management is locked|another application|pid .* \(packagekitd\)|is locked"; then
+    # Lock detection is deliberately narrow: `is locked` alone would match
+    # unrelated messages (e.g. a locked package via `zypper al`, or
+    # "repository ... is locked") and send a genuine error through the full
+    # retry-and-sleep path — PackageKit is specifically "System management
+    # is locked ... (packagekitd)" (issue #165).
+    if ! printf '%s' "$out" | grep -qiE "system management is locked|another application|pid .* \(packagekitd\)"; then
+      # Not a lock: surface zypper's own error text, then the real exit
+      # status — pm_install's generic "zypper install failed" alone was
+      # undiagnosable.
+      if [ -n "$out" ]; then
+        printf 'zypper said:\n%s\n' "$out" >&2
+      fi
       return "$rc"
     fi
     if [ $i -lt 4 ]; then
@@ -868,12 +888,19 @@ apt_retry() {
     # apt/dpkg lock files.
     if ! command -v fuser >/dev/null 2>&1; then
       # psmisc missing: don't trust the missing fuser as "lock not busy" —
-      # assume busy and retry instead (issue #163).
-      if [ $i -lt 4 ]; then
+      # assume busy and retry instead (issue #163). But without fuser we
+      # can't tell "lock busy" from a genuinely failing apt (broken network,
+      # bad package name), so cap these blind retries: give up after the
+      # second failed attempt instead of burning the full 4 × 3s+ backoff
+      # on an unrecoverable failure.
+      if [ $i -ge 2 ]; then
         echo "WARNING: apt-get $*: fuser (psmisc) missing; assuming dpkg/apt" >&2
-        echo "lock busy (attempt $i/4); retrying in $((i * 3))s." >&2
-        sleep "$((i * 3))"
+        echo "lock busy, but giving up after $i attempts." >&2
+        return 1
       fi
+      echo "WARNING: apt-get $*: fuser (psmisc) missing; assuming dpkg/apt" >&2
+      echo "lock busy (attempt $i/2); retrying in $((i * 3))s." >&2
+      sleep "$((i * 3))"
       continue
     fi
     if ! sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock \
