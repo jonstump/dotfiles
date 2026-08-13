@@ -510,6 +510,71 @@ bind-key f if-shell 'command -v lazy-tmux >/dev/null 2>&1' \
   'display-message "lazy-tmux is not installed"'
 bind-key C-s run-shell 'command -v lazy-tmux >/dev/null 2>&1 && { lazy-tmux save --all --scrollback && tmux display-message "All sessions saved successfully!" || tmux display-message "lazy-tmux save failed"; } || tmux display-message "lazy-tmux is not installed"'
 
+# -- pane navigation (vim-tmux-navigator takeover) -----------------------------
+
+# We bind C-h/C-j/C-k/C-l ourselves instead of letting vim-tmux-navigator do
+# it, because its stock bindings have two problems here:
+#
+#   1. `select-pane -L` WRAPS at the window edge. In the leftmost pane, C-h
+#      does not "do nothing" — it jumps to the *rightmost* pane (verified on
+#      tmux 3.4: from pane 1 of 3, `select-pane -L` lands on pane 3, and
+#      `select-pane -R` from pane 3 lands back on pane 1). Same for C-j/C-k
+#      at the top and bottom. The plugin exposes no option for this; its
+#      command string is hardcoded, so the only way to add an edge test is to
+#      own the binding.
+#
+#   2. The plugin binds *prefix* C-l to `send-keys C-l` ("restoring clear
+#      screen"), which silently clobbers tmux.conf's `bind -r C-l
+#      next-window`. That left prefix C-h (previous-window) working while
+#      prefix C-l did something else entirely.
+#
+# Emptying the mapping options below stops the plugin from binding those keys
+# at all — its `for k in $(echo "$opt")` loops iterate zero times — which is
+# what lets the bindings here stand. That matters for ordering: tpm runs
+# *after* this file is sourced, so a plain `bind -n C-h ...` here would still
+# be overwritten by the plugin. Emptying the options is the only thing that
+# survives.
+#
+# The `if -F '#{pane_at_left}' ''` wrapper is the edge test: at the edge, run
+# nothing. The outer `if-shell` is the plugin's own vim check, kept verbatim
+# so a C-h inside vim still reaches vim rather than moving the tmux pane.
+set -g @vim_navigator_mapping_left ''
+set -g @vim_navigator_mapping_right ''
+set -g @vim_navigator_mapping_up ''
+set -g @vim_navigator_mapping_down ''
+set -g @vim_navigator_mapping_prev ''
+set -g @vim_navigator_prefix_mapping_clear_screen ''
+
+bind -n C-h if-shell "ps -o state= -o comm= -t '#{pane_tty}' | grep -iqE '^[^TXZ ]+ +(\\S+/)?g?\\.?(view|l?n?vim?x?|fzf)(diff)?(-wrapped)?$'" "send-keys C-h" "if -F '#{pane_at_left}'   '' 'select-pane -L'"
+bind -n C-j if-shell "ps -o state= -o comm= -t '#{pane_tty}' | grep -iqE '^[^TXZ ]+ +(\\S+/)?g?\\.?(view|l?n?vim?x?|fzf)(diff)?(-wrapped)?$'" "send-keys C-j" "if -F '#{pane_at_bottom}' '' 'select-pane -D'"
+bind -n C-k if-shell "ps -o state= -o comm= -t '#{pane_tty}' | grep -iqE '^[^TXZ ]+ +(\\S+/)?g?\\.?(view|l?n?vim?x?|fzf)(diff)?(-wrapped)?$'" "send-keys C-k" "if -F '#{pane_at_top}'    '' 'select-pane -U'"
+bind -n C-l if-shell "ps -o state= -o comm= -t '#{pane_tty}' | grep -iqE '^[^TXZ ]+ +(\\S+/)?g?\\.?(view|l?n?vim?x?|fzf)(diff)?(-wrapped)?$'" "send-keys C-l" "if -F '#{pane_at_right}'  '' 'select-pane -R'"
+
+# copy-mode-vi gets the same treatment the plugin gave it, minus the wrap.
+bind -T copy-mode-vi C-h if -F '#{pane_at_left}'   '' 'select-pane -L'
+bind -T copy-mode-vi C-j if -F '#{pane_at_bottom}' '' 'select-pane -D'
+bind -T copy-mode-vi C-k if -F '#{pane_at_top}'    '' 'select-pane -U'
+bind -T copy-mode-vi C-l if -F '#{pane_at_right}'  '' 'select-pane -R'
+
+# -- clear screen and scrollback -----------------------------------------------
+
+# tmux.conf binds this to root C-l, but C-l is pane navigation (above), so
+# that binding has been dead ever since vim-tmux-navigator was enabled. Move
+# it to a prefix key that nothing else claims.
+#
+# tmux.conf's version is also unsafe as written:
+#
+#     bind -n C-l send-keys C-l \; run 'sleep 0.2' \; clear-history
+#
+# `clear-history` with no `-t` resolves the *current* pane when it runs, and
+# the 0.2s sleep gives you time to move panes first — so clearing and then
+# navigating wipes the scrollback of whichever pane you landed on, not the
+# one you pressed the key in (verified: switch panes during the sleep and the
+# new pane's history_size goes to 0 while the original keeps its scrollback).
+# Pinning `-t '#{pane_id}'` binds the target at press time, so the sleep can
+# no longer retarget it.
+bind C-k send-keys C-l \; run -b "sleep 0.2; tmux clear-history -t '#{pane_id}'"
+
 # -- custom variables ----------------------------------------------------------
 
 # to define a custom #{foo} variable, define a POSIX shell function between the

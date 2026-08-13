@@ -1,5 +1,5 @@
 # Identity is deliberately NOT tracked here — this repo is public. Put it in
-# ~/.gitconfig.local, which the include below picks up:
+# ~/.gitconfig.local, which the include at the BOTTOM of this file picks up:
 #
 #   [user]
 #       name = Your Name
@@ -8,8 +8,12 @@
 # Without that file, `git commit` fails with "Please tell me who you are" on
 # a fresh machine. chezmoi doesn't manage ~/.gitconfig.local at all — it's
 # untracked on every machine, same as before this repo moved to chezmoi.
-[include]
-	path = ~/.gitconfig.local
+#
+# The include is last on purpose. It used to be first, which meant every
+# setting below silently outranked whatever ~/.gitconfig.local said — git
+# takes the last value for single-valued keys, so a machine-local `pull.ff`
+# or `core.pager` override never actually applied. Last-include means the
+# local file wins, which is what "local override" is supposed to mean.
 
 # git-delta is installed by both Brewfile and apt-packages.txt, but it only
 # does anything once it's wired up as git's pager.
@@ -36,3 +40,46 @@
 
 [pull]
 	ff = only
+
+# -- GitHub credentials --------------------------------------------------------
+#
+# This file IS ~/.gitconfig, and ~/.gitconfig is exactly where `gh auth
+# setup-git` writes its credential helper. So adopting this repo overwrites
+# that block, and every later `chezmoi apply` overwrites it again — silently
+# reverting GitHub HTTPS auth to whatever else is left on the machine
+# (typically a stale osxkeychain entry, or a password/expired PAT). The
+# failure mode is a confusing one, because git *does* find a credential and
+# GitHub rejects it:
+#
+#   remote: Invalid username or token. Password authentication is not
+#   supported for Git operations.
+#   fatal: Authentication failed for 'https://github.com/owner/repo/'
+#
+# Tracking the helper here is what makes it survive `chezmoi apply`.
+#
+# The empty `helper =` first resets the helper list, so a stale credential
+# from the system gitconfig or the macOS keychain can no longer answer for
+# github.com and shadow the good one. The reset is scoped to this URL — other
+# hosts keep whatever helpers they had (verified: with a `store` helper set
+# globally, github.com resolves to gh alone while gitlab.com still resolves
+# to `store`).
+#
+# The shell wrapper keeps this safe on machines without gh: `gh` is only in
+# the Brewfile, not in apt/dnf/pacman/zypper lists, so a bare
+# `!gh auth git-credential` would break HTTPS auth on those hosts. Written
+# this way the helper exits 0 and contributes nothing when gh is missing, and
+# git falls through to its normal prompt instead of erroring.
+#
+# Requires `gh auth login` once per machine. `gh auth setup-git` is NOT
+# needed — that command only writes this same block.
+[credential "https://github.com"]
+	helper =
+	helper = "!f() { command -v gh >/dev/null 2>&1 && gh auth git-credential \"$@\" || true; }; f"
+[credential "https://gist.github.com"]
+	helper =
+	helper = "!f() { command -v gh >/dev/null 2>&1 && gh auth git-credential \"$@\" || true; }; f"
+
+# Last, so machine-local settings override everything above. See the note at
+# the top of this file.
+[include]
+	path = ~/.gitconfig.local
